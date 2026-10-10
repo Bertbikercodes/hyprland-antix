@@ -3,9 +3,9 @@
 **Hyprland for antiX — including antiX Core — without systemd.**
 
 antiX is a systemd-free distro (SysVinit/runit), and antiX Core has no X or
-Wayland at all. This repo ships a self-contained, ready-to-run Hyprland
-build that works on antiX 23 (Debian 12 bookworm base, glibc 2.36) and any
-Debian 12/13 derivative, with **no systemd, no elogind** — seat management
+Wayland at all. This repo ships a ready-to-run Hyprland
+build that works on antiX (Debian 12 bookworm or Debian 13 trixie base) and
+matching derivatives, with **no systemd, no elogind** — seat management
 is provided by [seatd](https://git.sr.ht/~kennylevinsen/seatd).
 
 ## Install command (owner testing)
@@ -32,18 +32,33 @@ hyprland
 | aquamarine | 0.15.1 | Hyprland's backend, libseat mode → works with seatd |
 | hyprwire | 0.3.1 | + gcc-14 compatibility patch |
 | seatd | 1.0.0 | static binary, installed as a SysVinit service |
-| glaze, mesa, wayland, ... | — | bundled runtime libs (see "Portable bundle" below) |
+| hyprutils/hyprlang/... | — | Hypr-family libs, installed to `/usr/local/lib` |
+| libxkbcommon, libinput | pinned | newer than trixie ships; installed privately for Hyprland only (see below) |
 
-Everything lands in `/opt/hyprland-antix`, a wrapper in `/usr/local/bin/hyprland`,
-and an init script in `/etc/init.d/seatd-antix`.
+The installer picks the mode automatically:
+
+- **Native mode** (system glibc ≥ 2.38 — Debian 13/trixie based antiX, which
+  is what antiX Core targets here): all runtime libs (mesa, wayland, cairo,
+  pango, glib, ...) come from the **antiX/Debian repos via apt** (~95 small
+  packages). Only the Hyprland binaries, the Hypr-family libs and a static
+  seatd land in `/usr/local`. Hyprland runs as a **normal system binary** —
+  no bundled loader, no Debian layer.
+- **Portable mode** (older glibc, e.g. antiX 23/bookworm): self-contained
+  bundle in `/opt/hyprland-antix` with its own loader and libs.
+
+Two pinned libs (`libxkbcommon` 1.11, `libinput` 1.29) are newer than what
+trixie ships, so they sit in `/usr/local/lib/hyprland-antix/` — a private
+directory outside the `ldconfig` cache. Only Hyprland can reach them
+(through an `RPATH` on the binary itself). Everything else on your system
+keeps using its own system libs — nothing is shadowed or overwritten.
 
 ## Requirements on the antiX side
 
 - antiX 23.x 64-bit (works on Core: that is what it was built for)
 - a GPU with kernel KMS (intel/amd/nouveau — the kernel driver loads
   independently of userspace; `mesa-utils` optional)
-- host packages the installer pulls from antiX repos: `xkb-data`, `xwayland`
-  (optional but recommended), `curl`, `ca-certificates`
+- native mode pulls its runtime libs from the antiX/Debian repos
+  (`apt install` of ~95 packages incl. mesa drivers, xkb-data, xwayland)
 - your user in the `video`, `input` and `seat` groups (installer does this if
   run with sudo; otherwise `sudo adduser $USER video input seat`)
 
@@ -51,9 +66,9 @@ antiX Core tip: you do **not** need to install X or a display manager. You
 need a Wayland *client* or two, e.g. `foot` (terminal) and `waybar` —
 `sudo apt install foot waybar`. X apps run through the bundled Xwayland.
 
-## Portable bundle — how this can run on bookworm
+## Portable mode (fallback) — how this can run on bookworm
 
-Hyprland 0.56 needs a gcc-15-era toolchain and current libstdc++ (C++23/26
+For pre-trixie bases Hyprland 0.56 needs a gcc-15-era toolchain and current libstdc++ (C++23/26
 features), which bookworm does not ship. So instead of fighting bookworm's
 compiler, this project:
 

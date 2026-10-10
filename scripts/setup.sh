@@ -1,14 +1,23 @@
 #!/bin/sh
 # setup.sh — called by install.sh from the unpacked bundle
-# Sets up: /usr/local/bin/hyprland wrapper, seatd sysVinit service, user groups.
+# Usage: setup.sh <native|portable> [real-user]
+#  native:   /usr/local/bin/hyprland is a plain symlink (binaries/libs already
+#            copied to /usr/local by install.sh) — system libs are used.
+#  portable: /usr/local/bin/hyprland is a wrapper running the bundled loader.
+# Both: seatd sysVinit service + user groups.
 set -eu
 DEST="/opt/hyprland-antix"
-REAL_USER="${1:-}"
+MODE="${1:-portable}"
+REAL_USER="${2:-}"
 
 [ "$(id -u)" = "0" ] || { echo "setup.sh must run as root" >&2; exit 1; }
 
-# 1. launcher wrapper on PATH
-cat > /usr/local/bin/hyprland <<'WRAP'
+# 1. launcher on PATH
+if [ "$MODE" = "native" ]; then
+    rm -f /usr/local/bin/hyprland
+    ln -sf /usr/local/bin/Hyprland /usr/local/bin/hyprland
+else
+    cat > /usr/local/bin/hyprland <<'WRAP'
 #!/bin/sh
 # hyprland-antix launcher: runs the bundled Hyprland with its own libs
 HL=/opt/hyprland-antix
@@ -25,10 +34,12 @@ exec "$HL/lib/ld-linux-x86-64.so.2" \
   --library-path "$HL/lib:$HL/lib/dri:/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu" \
   "$HL/bin/Hyprland" "$@"
 WRAP
-chmod 755 /usr/local/bin/hyprland
+    chmod 755 /usr/local/bin/hyprland
+fi
 
-# 2. seatd sysVinit service (use distro seatd if present, else the bundled static binary)
-SEATD_BIN="$(command -v seatd || true)"
+# 2. seatd sysVinit service (use distro seatd if present, else the installed/bundled binary)
+SEATD_BIN="/usr/local/bin/seatd"
+[ -x "$SEATD_BIN" ] || SEATD_BIN="$(command -v seatd || true)"
 [ -x "$SEATD_BIN" ] || SEATD_BIN="$DEST/bin/seatd"
 
 cat > /etc/init.d/seatd-antix <<INIT
@@ -37,8 +48,8 @@ cat > /etc/init.d/seatd-antix <<INIT
 # Provides:          seatd-antix
 # Required-Start:    \$local_fs
 # Required-Stop:     \$local_fs
-# Default-Start:     2 3 4 5
-# Default-Stop:      0 1 6
+# Default-Start:      2 3 4 5
+# Default-Stop:       0 1 6
 # Short-Description: seat management daemon for Hyprland
 ### END INIT INFO
 DAEMON="$SEATD_BIN"
@@ -62,7 +73,7 @@ INIT
 chmod 755 /etc/init.d/seatd-antix
 
 # group 'seat' for seatd socket access, then service
-getent group seat >/dev/null || addgroup --system seat
+getent group seat >/dev/null 2>&1 || groupadd -f seat 2>/dev/null || addgroup --system seat 2>/dev/null || true
 update-rc.d seatd-antix defaults >/dev/null
 service seatd-antix start >/dev/null 2>&1 || /etc/init.d/seatd-antix start || true
 [ -S /run/seatd.sock ] && chmod 775 /run/seatd.sock || true
@@ -77,4 +88,4 @@ else
     echo "could not detect invoking user — add yourself manually:"
     echo "  sudo adduser \$USER video; sudo adduser \$USER input; sudo adduser \$USER seat"
 fi
-echo "setup complete"
+echo "setup complete (${MODE})"

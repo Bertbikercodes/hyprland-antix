@@ -1,0 +1,16 @@
+--- a/src/helpers/MiscFunctions.cpp
++++ b/src/helpers/MiscFunctions.cpp
+@@ -837,8 +837,12 @@
+         return sc<char>(std::tolower(ch));
+     });
+ 
++    // hyprland-antix: gcc-15 libstdc++ lacks std::ranges::starts_with
+     return [&](auto&&... prefixes) -> bool {
+-        return (... || std::ranges::starts_with(str_view, prefixes));
++        auto begins_with = [&](auto&& p) -> bool {
++            return std::ranges::equal(str_view | std::views::take(p.size()), p);
++        };
++        return (... || begins_with(prefixes));
+     }("true"sv, "yes"sv, "on"sv);
+     // clang-format on
+ }

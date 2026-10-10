@@ -8,6 +8,61 @@ build that works on antiX (Debian 12 bookworm or Debian 13 trixie base) and
 matching derivatives, with **no systemd, no elogind** — seat management
 is provided by [seatd](https://git.sr.ht/~kennylevinsen/seatd).
 
+## Full command list — from a fresh antiX Core install to Hyprland
+
+Run these commands in order. Nothing else is needed.
+
+```sh
+# 0. (one-time, on your other PC) download + flash the ISO
+#    https://antixlinux.com/download/  ->  antiX-26.1_x64-core.iso
+#    flash with Rufus (Windows) or:  sudo dd if=antiX-26.1_x64-core.iso of=/dev/sdX bs=4M
+
+# 1. boot the USB, log in as root (password: root), run the installer
+#    choose: English / keyboard English (US) / sysVinit
+#    after install: remove USB, reboot, log in as your own user
+
+# 2. on the installed antiX Core console: check internet
+ping -c 3 deb.debian.org
+
+# 3. install Hyprland (one command: libs via apt + binaries + seatd + apps + config)
+curl -fsSL https://raw.githubusercontent.com/Bertbikercodes/hyprland-antix/main/install.sh | sudo bash
+
+# 4. start it (from the text console, not inside X)
+hyprland
+```
+
+That's it — you land in Hyprland with waybar at the bottom.
+
+Verify it worked (all three must answer):
+
+```sh
+hyprland --version        # -> Hyprland 0.56.2
+ls /run/seatd.sock        # -> socket exists
+groups                    # -> video, input, seat are listed
+```
+
+Default key bindings (English US keyboard is configured automatically;
+$mainMod = the Windows key):
+
+| Keys | Action |
+|---|---|
+| Win + Enter | open terminal (foot) |
+| Win + Q | close window |
+| Win + F | fullscreen |
+| Win + Space | toggle floating |
+| Win + arrows | move focus |
+| Win + 1..5 | switch workspace |
+| Win + Shift + 1..5 | move window to workspace |
+| Win + B | waybar on/off |
+| Win + M | quit Hyprland (back to console) |
+
+Remove everything again:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Bertbikercodes/hyprland-antix/main/install.sh -o /tmp/inst
+sudo bash /tmp/inst        # menu -> option 5) Uninstall -> y
+```
+
 ## Install command (owner testing)
 
 From a root shell (or with sudo) on antiX with internet:

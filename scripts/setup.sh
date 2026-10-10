@@ -88,4 +88,13 @@ else
     echo "could not detect invoking user — add yourself manually:"
     echo "  sudo adduser \$USER video; sudo adduser \$USER input; sudo adduser \$USER seat"
 fi
+# 4. default Hyprland config (English US keyboard, foot + waybar binds)
+for HOME_DIR in /root /home/*; do
+    [ -d "$HOME_DIR" ] || continue
+    mkdir -p "$HOME_DIR/.config/hypr"
+    cp -f "$DEST/config/hyprland.conf" "$HOME_DIR/.config/hypr/hyprland.conf"
+done
+mkdir -p /etc/skel/.config/hypr
+cp -f "$DEST/config/hyprland.conf" /etc/skel/.config/hypr/hyprland.conf
+
 echo "setup complete (${MODE})"

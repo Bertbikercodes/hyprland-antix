@@ -1,0 +1,50 @@
+/* OVERSHOT OS — compact bottom dock (second waybar instance).
+   The window is transparent; only the centered cluster gets a rounded pill.
+   The dock floats (exclusive: false) and can be toggled with Win+D. */
+
+window#waybar {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.modules-center {
+    background: rgba(13, 17, 23, 0.85);
+    border: 1px solid rgba(95, 208, 240, 0.22);
+    border-radius: 14px;
+    padding: 4px 12px;
+    margin: 0;
+}
+
+#custom-launcher, #custom-files, #custom-term, #custom-browser, #custom-settings {
+    font-family: "Font Awesome 6 Free", sans-serif;
+    font-size: 17px;
+    color: #c9d1d9;
+    padding: 0 9px;
+    transition: font-size 120ms ease, color 120ms ease;
+}
+#custom-launcher:hover, #custom-files:hover, #custom-term:hover,
+#custom-browser:hover, #custom-settings:hover {
+    font-size: 22px;
+    color: #5fd0f0;
+}
+
+/* running windows: subtle running indicator = accent underline */
+#taskbar {
+    padding: 0 4px;
+}
+#taskbar button {
+    font-family: "Font Awesome 6 Free", sans-serif;
+    font-size: 16px;
+    color: #8b949e;
+    padding: 0 6px;
+    border-bottom: 2px solid transparent;
+    border-radius: 8px;
+}
+#taskbar button.focused {
+    color: #c9d1d9;
+    border-bottom: 2px solid #5fd0f0;
+}
+#taskbar button:hover {
+    color: #5fd0f0;
+}

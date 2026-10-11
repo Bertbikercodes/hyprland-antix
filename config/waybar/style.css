@@ -1,0 +1,74 @@
+/* OVERSHOT OS — top panel styling. Dark translucent, restrained cyan accent. */
+
+* {
+    font-family: "Inter", "Font Awesome 6 Free", sans-serif;
+    font-size: 12px;
+    min-height: 0;
+}
+
+window#waybar {
+    background: rgba(13, 17, 23, 0.82);
+    border: 1px solid rgba(95, 208, 240, 0.16);
+    border-radius: 10px;
+    color: #c9d1d9;
+}
+
+.modules-left, .modules-center, .modules-right {
+    padding: 0 10px;
+}
+
+/* brand */
+#custom-brand {
+    color: #5fd0f0;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 0 8px 0 4px;
+}
+
+/* workspaces: only existing ones are shown; active is visually distinct */
+#workspaces button {
+    background: transparent;
+    color: #8b949e;
+    min-width: 20px;
+    padding: 0 4px;
+    border-radius: 6px;
+    margin: 2px;
+}
+#workspaces button.active {
+    background: #5fd0f0;
+    color: #0d1117;
+    font-weight: bold;
+}
+#workspaces button:hover {
+    background: rgba(95, 208, 240, 0.2);
+}
+
+#window {
+    color: #8b949e;
+    padding: 0 6px;
+}
+
+#clock, #network, #cpu, #memory, #battery, #pulseaudio {
+    color: #c9d1d9;
+    padding: 0 6px;
+}
+#battery.warning { color: #d29922; }
+#battery.critical { color: #f85149; }
+
+#tray {
+    padding: 0 6px;
+}
+#tray menu {
+    background: #0d1117;
+    border: 1px solid rgba(95, 208, 240, 0.2);
+    color: #c9d1d9;
+}
+
+#custom-power {
+    color: #f85149;
+    padding: 0 10px;
+}
+#custom-power:hover {
+    background: rgba(248, 81, 73, 0.15);
+    border-radius: 8px;
+}

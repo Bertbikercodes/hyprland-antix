@@ -1,0 +1,6 @@
+# OVERSHOT OS optional components (not installed by default)
+firefox-esr
+swaylock
+pavucontrol
+blueman
+brightnessctl

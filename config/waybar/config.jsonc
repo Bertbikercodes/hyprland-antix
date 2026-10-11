@@ -1,0 +1,57 @@
+{
+  "layer": "top",
+  "namespace": "overshot-top",
+  "position": "top",
+  "height": 30,
+  "margin": "6 8 0 8",
+  "exclusive": true,
+  "spacing": 6,
+  "modules-left": ["custom/brand", "hyprland/workspaces", "hyprland/window"],
+  "modules-center": ["clock"],
+  "modules-right": ["network", "pulseaudio", "battery", "cpu", "memory", "tray", "custom/power"],
+
+  "custom/brand": {
+    "format": "OVERSHOT",
+    "tooltip": false,
+    "on-click": "wofi --show drun"
+  },
+  "hyprland/workspaces": {
+    "format": "{name}",
+    "on-click": "activate",
+    "tooltip": false
+  },
+  "hyprland/window": {
+    "max-length": 40,
+    "separate-outputs": false,
+    "tooltip": false
+  },
+  "clock": {
+    "format": "  {:%H:%M}",
+    "format-alt": "  {:%H:%M}  {:%a %d %b %Y}",
+    "tooltip-format": "<tt>{calendar}</tt>",
+    "interval": 30
+  },
+  "network": {
+    "format-wifi": "  {essid}",
+    "format-ethernet": "  {ifname}",
+    "format-disconnected": "  offline",
+    "tooltip-format": "{ifname}: {ipaddr}",
+    "interval": 10
+  },
+  "pulseaudio": { "format": "  {volume}%", "format-muted": "  muted", "on-click": "pavucontrol", "tooltip": false }, // STRIP:audio
+  "battery": {
+    "format": "  {capacity}%",
+    "format-charging": "  {capacity}%",
+    "format-time": "{H}:{M}",
+    "states": { "warning": 30, "critical": 15 },
+    "interval": 30
+  },
+  "cpu": { "format": "  {usage}%", "interval": 5, "tooltip": false },
+  "memory": { "format": "  {percentage}%", "interval": 5, "tooltip": false },
+  "tray": { "spacing": 6 },
+  "custom/power": {
+    "format": "",
+    "tooltip": false,
+    "on-click": "overshot-powermenu"
+  }
+}

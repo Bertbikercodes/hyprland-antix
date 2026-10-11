@@ -1,0 +1,28 @@
+#!/bin/sh
+# OVERSHOT OS — seatd SysVinit service (source template; setup.sh installs it
+# with @SEATD_BIN@ and @SEATD_GROUP@ substituted).
+### BEGIN INIT INFO
+# Provides:          seatd-antix
+# Required-Start:    $local_fs
+# Required-Stop:     $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: seat management daemon for the OVERSHOT OS desktop
+### END INIT INFO
+DAEMON="@SEATD_BIN@"
+PIDFILE=/run/seatd-antix.pid
+SEATD_GROUP="@SEATD_GROUP@"
+
+case "$1" in
+  start)
+    start-stop-daemon --start --background --make-pidfile --pidfile "$PIDFILE" \
+      --exec "$DAEMON" -- -g "$SEATD_GROUP" -u root
+    ;;
+  stop)
+    start-stop-daemon --stop --pidfile "$PIDFILE" --retry 5
+    rm -f "$PIDFILE" /run/seatd.sock
+    ;;
+  restart) "$0" stop; sleep 1; "$0" start ;;
+  *) echo "Usage: $0 {start|stop|restart}"; exit 1 ;;
+esac
+exit 0

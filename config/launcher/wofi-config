@@ -1,0 +1,10 @@
+# OVERSHOT OS — wofi (application launcher) config
+width=560
+height=400
+show=drun
+term=foot
+allow_images=true
+insensitive=true
+prompt=Search…
+matching=fuzzy
+cache_dir=/tmp/wofi-overshot

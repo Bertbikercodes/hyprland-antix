@@ -1,0 +1,39 @@
+/* OVERSHOT OS — wofi launcher theme (dark, cyan accent) */
+* {
+    font-family: "Inter", sans-serif;
+}
+
+window {
+    background-color: rgba(13, 17, 23, 0.92);
+    border: 1px solid rgba(95, 208, 240, 0.25);
+    border-radius: 12px;
+}
+
+#input {
+    margin: 12px;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    background: #161b22;
+    color: #c9d1d9;
+}
+
+#input:focus {
+    border: 1px solid #5fd0f0;
+}
+
+#entry {
+    padding: 6px 12px;
+    margin: 0 12px;
+    border-radius: 8px;
+    color: #c9d1d9;
+}
+
+#entry:selected {
+    background: rgba(95, 208, 240, 0.18);
+    color: #ffffff;
+}
+
+#img {
+    margin-right: 8px;
+}

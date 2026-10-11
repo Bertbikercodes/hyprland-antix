@@ -1,21 +1,42 @@
 #!/bin/sh
-# setup.sh — called by install.sh from the unpacked bundle
+# OVERSHOT OS setup — called by install.sh from the unpacked bundle.
 # Usage: setup.sh <native|portable> [real-user]
-#  native:   /usr/local/bin/hyprland is a plain symlink (binaries/libs already
-#            copied to /usr/local by install.sh) — system libs are used.
-#  portable: /usr/local/bin/hyprland is a wrapper running the bundled loader.
-# Both: seatd sysVinit service + user groups.
+#
+# native:   /usr/local/bin/hyprland is a plain symlink; system libs are used.
+# portable: /usr/local/bin/hyprland wraps the bundled loader (older glibc).
+#
+# Both modes: seatd SysVinit service, device groups, OVERSHOT configs.
+# User configs are ONLY copied when absent — updates never clobber user edits.
 set -eu
 DEST="/opt/hyprland-antix"
+SHARE="/usr/local/share/overshot"
 MODE="${1:-portable}"
 REAL_USER="${2:-}"
 
 [ "$(id -u)" = "0" ] || { echo "setup.sh must run as root" >&2; exit 1; }
 
-# 1. launcher on PATH
+# ── 1. launcher on PATH ─────────────────────────────────────────────
 if [ "$MODE" = "native" ]; then
+    # wrapper (NOT a bare symlink): a TTY login has no XDG_RUNTIME_DIR without
+    # NOTE: remove first — /usr/local/bin/hyprland may be a symlink to Hyprland
+    # (from an older install.sh), and writing through it would destroy the
+    # real binary.
     rm -f /usr/local/bin/hyprland
-    ln -sf /usr/local/bin/Hyprland /usr/local/bin/hyprland
+    # elogind/systemd, and Hyprland refuses to start without it.
+    cat > /usr/local/bin/hyprland <<'WRAP'
+#!/bin/sh
+# OVERSHOT OS launcher (native): ensure a runtime dir, then exec Hyprland
+RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+if ! mkdir -p "$RUNTIME_DIR" 2>/dev/null; then
+    RUNTIME_DIR="/tmp/overshot-runtime-$(id -u)"
+    mkdir -p "$RUNTIME_DIR"
+fi
+chmod 700 "$RUNTIME_DIR" 2>/dev/null || true
+export XDG_RUNTIME_DIR="$RUNTIME_DIR"
+export XDG_SESSION_TYPE=wayland
+exec /usr/local/bin/Hyprland "$@"
+WRAP
+    chmod 755 /usr/local/bin/hyprland
 else
     cat > /usr/local/bin/hyprland <<'WRAP'
 #!/bin/sh
@@ -27,7 +48,6 @@ chmod 700 "$RUNTIME_DIR" 2>/dev/null || true
 export XDG_RUNTIME_DIR="$RUNTIME_DIR"
 export XDG_SESSION_TYPE=wayland
 export SEATD_SEAT="${SEATD_SEAT:-seat0}"
-# bundled mesa drivers first, then system libs (libudev from eudev stays system-side)
 export LIBGL_DRIVERS_PATH="$HL/lib/dri"
 export __EGL_VENDOR_LIBRARY_PATHS="$HL/share/glvnd/egl_vendor.d"
 exec "$HL/lib/ld-linux-x86-64.so.2" \
@@ -37,48 +57,38 @@ WRAP
     chmod 755 /usr/local/bin/hyprland
 fi
 
-# 2. seatd sysVinit service (use distro seatd if present, else the installed/bundled binary)
+# ── 2. seatd sysVinit service ───────────────────────────────────────
 SEATD_BIN="/usr/local/bin/seatd"
 [ -x "$SEATD_BIN" ] || SEATD_BIN="$(command -v seatd || true)"
 [ -x "$SEATD_BIN" ] || SEATD_BIN="$DEST/bin/seatd"
 
-cat > /etc/init.d/seatd-antix <<INIT
-#!/bin/sh
-### BEGIN INIT INFO
-# Provides:          seatd-antix
-# Required-Start:    \$local_fs
-# Required-Stop:     \$local_fs
-# Default-Start:      2 3 4 5
-# Default-Stop:       0 1 6
-# Short-Description: seat management daemon for Hyprland
-### END INIT INFO
-DAEMON="$SEATD_BIN"
-PIDFILE=/run/seatd-antix.pid
-SEATD_GROUP="seat"
-case "\$1" in
-  start)
-    # socket path both seatd and libseat defaults agree on
-    start-stop-daemon --start --background --make-pidfile --pidfile \$PIDFILE \\
-      --exec \$DAEMON -- -g \$SEATD_GROUP -u root
-    ;;
-  stop)
-    start-stop-daemon --stop --pidfile \$PIDFILE --retry 5
-    rm -f \$PIDFILE /run/seatd.sock
-    ;;
-  restart) \$0 stop; sleep 1; \$0 start ;;
-  *) echo "Usage: \$0 {start|stop|restart}"; exit 1 ;;
-esac
-exit 0
-INIT
+sed -e "s|@SEATD_BIN@|$SEATD_BIN|g" -e "s|@SEATD_GROUP@|seat|g" \
+    "$DEST/services/seatd-antix" > /etc/init.d/seatd-antix
 chmod 755 /etc/init.d/seatd-antix
 
-# group 'seat' for seatd socket access, then service
 getent group seat >/dev/null 2>&1 || groupadd -f seat 2>/dev/null || addgroup --system seat 2>/dev/null || true
 update-rc.d seatd-antix defaults >/dev/null
 service seatd-antix start >/dev/null 2>&1 || /etc/init.d/seatd-antix start || true
 [ -S /run/seatd.sock ] && chmod 775 /run/seatd.sock || true
 
-# 3. user groups: video, input, seat (+render for GPU)
+# ── 3. system-wide OVERSHOT files (configs, assets, helper scripts) ──
+mkdir -p "$SHARE"
+cp -r "$DEST/config" "$SHARE/config"
+cp -r "$DEST/assets" "$SHARE/assets"
+mkdir -p "$SHARE/scripts"
+for s in power-menu.sh dock-toggle.sh perf-mode.sh settings.sh browser.sh screenshot.sh doctor.sh benchmark.sh; do
+    [ -f "$DEST/scripts/$s" ] && cp -f "$DEST/scripts/$s" "$SHARE/scripts/$s"
+done
+chmod 755 "$SHARE/scripts"/*
+
+for l in powermenu:power-menu.sh settings:settings.sh dock-toggle:dock-toggle.sh \
+         perf:perf-mode.sh browser:browser.sh shot:screenshot.sh \
+         doctor:doctor.sh benchmark:benchmark.sh; do
+    name="${l%%:*}"; src="${l#*:}"
+    ln -sf "$SHARE/scripts/$src" "/usr/local/bin/overshot-$name"
+done
+
+# ── 4. device groups for the invoking user ───────────────────────────
 if [ -n "$REAL_USER" ] && id "$REAL_USER" >/dev/null 2>&1; then
     for g in video input render seat; do
         adduser "$REAL_USER" "$g" >/dev/null 2>&1 || true
@@ -88,13 +98,70 @@ else
     echo "could not detect invoking user — add yourself manually:"
     echo "  sudo adduser \$USER video; sudo adduser \$USER input; sudo adduser \$USER seat"
 fi
-# 4. default Hyprland config (English US keyboard, foot + waybar binds)
+
+# ── 5. per-user desktop configs (only where absent — never overwrite) ─
+install_user_configs() {
+    HOME_DIR="$1"
+    HY="$HOME_DIR/.config/hypr"
+    WB="$HOME_DIR/.config/waybar"
+    WF="$HOME_DIR/.config/wofi"
+
+    # Hyprland
+    if [ ! -f "$HY/hyprland.conf" ]; then
+        mkdir -p "$HY"
+        cp -f "$DEST/config/hypr/hyprland.conf" "$HY/hyprland.conf"
+        cp -f "$DEST/config/hypr/theme.conf" "$HY/theme.conf"
+        cp -f "$DEST/config/hypr/keybinds.conf" "$HY/keybinds.conf"
+        [ -f "$HY/user-overrides.conf" ] || : > "$HY/user-overrides.conf"
+        : > "$HY/.overshot-default"
+    elif [ ! -f "$HY/.overshot-default" ]; then
+        # foreign or pre-OVERSHOT config: back it up, then install our defaults.
+        # (Once the marker exists we NEVER touch the user's config again.)
+        mkdir -p "$HY/overshot-backups"
+        cp -f "$HY/hyprland.conf" "$HY/overshot-backups/hyprland.conf.$(date +%Y%m%d-%H%M%S)"
+        echo "backed up existing hyprland.conf to $HY/overshot-backups/ (upgrading to OVERSHOT defaults)"
+        cp -f "$DEST/config/hypr/hyprland.conf" "$HY/hyprland.conf"
+        cp -f "$DEST/config/hypr/theme.conf" "$HY/theme.conf"
+        cp -f "$DEST/config/hypr/keybinds.conf" "$HY/keybinds.conf"
+        [ -f "$HY/user-overrides.conf" ] || : > "$HY/user-overrides.conf"
+        : > "$HY/.overshot-default"
+    fi
+
+    # waybar (top panel + dock) — only installed fresh; user edits always win
+    if [ ! -f "$WB/config.jsonc" ]; then
+        mkdir -p "$WB"
+        cp -f "$DEST/config/waybar/config.jsonc" "$WB/config.jsonc"
+        cp -f "$DEST/config/waybar/style.css" "$WB/style.css"
+        cp -f "$DEST/config/waybar/dock.jsonc" "$WB/dock.jsonc"
+        cp -f "$DEST/config/waybar/dock.css" "$WB/dock.css"
+        # graceful degradation: strip modules whose backends are missing
+        if ! command -v pactl >/dev/null 2>&1; then
+            sed -i '/STRIP:audio/d' "$WB/config.jsonc"
+        fi
+        if ! command -v firefox-esr >/dev/null 2>&1 && ! command -v firefox >/dev/null 2>&1 \
+           && ! command -v chromium >/dev/null 2>&1; then
+            sed -i '/STRIP:browser/d' "$WB/dock.jsonc"
+        fi
+    fi
+
+    # wofi launcher
+    if [ ! -f "$WF/config" ]; then
+        mkdir -p "$WF"
+        cp -f "$DEST/config/launcher/wofi-config" "$WF/config"
+        cp -f "$DEST/config/launcher/wofi-style.rasi" "$WF/style.rasi"
+    fi
+
+    # dark GTK out of the box
+    if [ ! -f "$HOME_DIR/.config/gtk-3.0/settings.ini" ]; then
+        mkdir -p "$HOME_DIR/.config/gtk-3.0"
+        printf '[Settings]\ngtk-application-prefer-dark-theme=true\n' \
+            > "$HOME_DIR/.config/gtk-3.0/settings.ini"
+    fi
+}
+
 for HOME_DIR in /root /home/*; do
     [ -d "$HOME_DIR" ] || continue
-    mkdir -p "$HOME_DIR/.config/hypr"
-    cp -f "$DEST/config/hyprland.conf" "$HOME_DIR/.config/hypr/hyprland.conf"
+    install_user_configs "$HOME_DIR"
 done
-mkdir -p /etc/skel/.config/hypr
-cp -f "$DEST/config/hyprland.conf" /etc/skel/.config/hypr/hyprland.conf
 
 echo "setup complete (${MODE})"

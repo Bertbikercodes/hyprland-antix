@@ -1,4 +1,0 @@
-# OVERSHOT OS extras (fonts + GPU tools)
-fonts-noto-core
-fonts-symbola
-mesa-utils

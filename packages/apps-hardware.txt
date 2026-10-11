@@ -1,0 +1,3 @@
+# installed ONLY when a bluetooth adapter is detected
+bluez
+blueman

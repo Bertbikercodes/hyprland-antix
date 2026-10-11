@@ -1,0 +1,3 @@
+# OVERSHOT OS — optional extras (menu choice, not installed by default)
+# video player (audacious covers audio; VLC adds video + more codecs)
+vlc

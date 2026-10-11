@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Clipboard History
+Comment=Pick a previous clipboard entry (Win+V)
+Exec=overshot-clipboard
+Icon=edit-paste
+Categories=Utility;
+Terminal=false

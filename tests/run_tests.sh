@@ -42,8 +42,9 @@ SHARE=/usr/local/share/overshot
 [ -f "$SHARE/config/hypr/hyprland.conf" ] && ok "hyprland default config shipped" || bad "hyprland default config missing"
 [ -f "$SHARE/config/waybar/config.jsonc" ]  && ok "waybar config shipped" || bad "waybar config missing"
 [ -f "$SHARE/config/waybar/dock.jsonc" ]   && ok "dock config shipped" || bad "dock config missing"
+[ -f "$SHARE/config/mimeapps.list" ]       && ok "default file associations shipped" || bad "mimeapps.list missing"
 [ -f "$SHARE/assets/overshot-wallpaper.png" ] && ok "wallpaper asset shipped" || bad "wallpaper asset missing"
-for n in powermenu settings dock-toggle perf browser shot doctor benchmark; do
+for n in powermenu settings dock-toggle perf browser shot doctor benchmark lock record clipboard; do
     [ -e "/usr/local/bin/overshot-$n" ] && ok "overshot-$n command" || bad "overshot-$n command missing"
 done
 
@@ -53,6 +54,7 @@ for h in /home/*; do [ -d "$h" ] && USER_HOMES="$USER_HOMES $h"; done
 for H in $USER_HOMES; do
     [ -f "$H/.config/hypr/hyprland.conf" ] && ok "$H: hyprland.conf" || bad "$H: hyprland.conf missing"
     [ -f "$H/.config/waybar/config.jsonc" ] && ok "$H: waybar config" || bad "$H: waybar config missing"
+    [ -f "$H/.config/mimeapps.list" ] && ok "$H: file associations" || bad "$H: mimeapps.list missing"
 done
 
 # 7. waybar configs are valid JSONC (after comment stripping)
@@ -61,8 +63,8 @@ if have python3; then
         if python3 - "$f" <<'PY'
 import json, re, sys
 raw = open(sys.argv[1]).read()
-raw = re.sub(r'^\s*//.*$', '', raw, flags=re.M)          # // comments (own lines + trailing handled below)
-raw = re.sub(r'//[^\n"]*$', '', raw, flags=re.M)         # trailing // STRIP:xxx markers without quote confusion
+raw = re.sub(r'^\s*//.*$', '', raw, flags=re.M)
+raw = re.sub(r'//[^\n"]*$', '', raw, flags=re.M)
 json.loads(raw)
 PY
         then ok "$f parses as JSON"; else bad "$f is not valid JSON"; fi
@@ -78,12 +80,62 @@ if ! have firefox-esr && ! have firefox && ! have chromium; then
     grep -q STRIP:browser /root/.config/waybar/dock.jsonc 2>/dev/null \
         && bad "browser module left in dock without a browser" || ok "browser dock icon correctly absent/stripped"
 fi
+if ! have audacious; then
+    grep -q STRIP:music /root/.config/waybar/dock.jsonc 2>/dev/null \
+        && bad "music module left in dock without audacious" || ok "music dock icon correctly absent/stripped"
+fi
 
-# 9. optional components must not break the core
-have swaylock || skip "swaylock not installed (optional)"
-have firefox-esr || skip "firefox not installed (optional)"
+# 9. application suite — mandatory apps must really be there
+for b in foot thunar udisksctl dunst swaybg swaylock grim slurp wl-copy \
+          cliphist xarchiver 7z unzip zathura imv-wayland mousepad htop ncdu brightnessctl \
+          audacious pavucontrol desktop-file-validate; do
+    have "$b" && ok "app: $b" || bad "app: $b missing (mandatory)"
+done
 
-# 10. Hyprland actually runs
+[ -x /usr/lib/x86_64-linux-gnu/tumbler-1/tumblerd ] || [ -x /usr/libexec/tumblerd ] \
+    && ok "app: tumblerd (file previews)" || bad "tumblerd missing (mandatory)"
+[ -f /usr/libexec/imv/imv ] && ok "app: imv viewer binary" || bad "imv viewer binary missing"
+
+# 10. stacks
+if have pactl || have pipewire || have pulseaudio; then
+    ok "audio stack present ($(have pipewire && echo pipewire || echo pulseaudio))"
+else bad "no audio stack (pulseaudio/pipewire) present"; fi
+if [ -x /etc/init.d/connman ] || [ -x /etc/init.d/network-manager ] || have NetworkManager; then
+    ok "network stack present (connman/NetworkManager)"
+else bad "no network manager present"; fi
+if have cmst; then ok "network GUI (cmst) present"; else skip "cmst absent (NetworkManager kept?)"; fi
+
+# 11. desktop menu entries valid + launchers point at installed programs
+DFV="$(command -v desktop-file-validate || true)"
+ENTRIES=0
+for f in /usr/local/share/applications/overshot-*.desktop; do
+    [ -e "$f" ] || continue
+    ENTRIES=$((ENTRIES+1))
+    if [ -n "$DFV" ] && ! "$DFV" "$f" >/dev/null 2>&1; then
+        bad "invalid desktop entry: $(basename "$f")"
+        continue
+    fi
+    EXE="$(grep -m1 '^Exec=' "$f" | sed 's/^Exec=//' | awk '{print $1}')"
+    [ -z "$EXE" ] && { bad "$(basename "$f") has no Exec"; continue; }
+    have "$EXE" && ok "menu entry $(basename "$f") -> $EXE" || bad "$(basename "$f") Exec target '$EXE' missing"
+done
+[ "$ENTRIES" -ge 5 ] && ok "$ENTRIES desktop menu entries installed" || bad "only $ENTRIES desktop entries installed"
+
+# 12. keybinds for the new suite shipped in the default config
+for pat in "overshot-powermenu" "overshot-clipboard" "overshot-record" "swaylock" "galculator"; do
+    grep -q "$pat" "$SHARE/config/hypr/keybinds.conf" \
+        && ok "keybind present: $pat" || bad "keybind missing: $pat"
+done
+
+# 13. recommended components (skipped in minimal mode — not a failure)
+for b in firefox-esr galculator wf-recorder lxappearance synaptic; do
+    have "$b" && ok "recommended app: $b" || skip "$b not installed (recommended, minimal mode?)"
+done
+
+# 14. install report
+[ -f "$SHARE/install-report.txt" ] && ok "install report written" || skip "install report not present yet (written at end of install)"
+
+# 15. Hyprland actually runs
 mkdir -p /tmp/overshot-test-runtime
 if OUT="$(XDG_RUNTIME_DIR=/tmp/overshot-test-runtime hyprland --version 2>&1 | head -1)" && [ -n "$OUT" ]; then
     ok "hyprland --version: $OUT"

@@ -7,13 +7,14 @@
   "exclusive": false,
   "spacing": 4,
   "modules-left": [],
-  "modules-center": ["custom/launcher", "custom/files", "custom/term", "custom/browser", "wlr/taskbar", "custom/settings"],
+  "modules-center": ["custom/launcher", "custom/files", "custom/term", "custom/browser", "custom/music", "wlr/taskbar", "custom/settings"],
   "modules-right": [],
 
   "custom/launcher": { "format": "", "tooltip": "Application launcher (wofi)", "on-click": "wofi --show drun" },
   "custom/files": { "format": "", "tooltip": "Files (Thunar)", "on-click": "thunar" },
   "custom/term": { "format": "", "tooltip": "Terminal (foot)", "on-click": "foot" },
   "custom/browser": { "format": "", "tooltip": "Web browser", "on-click": "overshot-browser" }, // STRIP:browser
+  "custom/music": { "format": "🎵", "tooltip": "Music player (Audacious)", "on-click": "audacious" }, // STRIP:music
   "wlr/taskbar": {
     "format": "{icon}",
     "all-outputs": true,

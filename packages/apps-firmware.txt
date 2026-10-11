@@ -1,0 +1,7 @@
+# hardware firmware — installed only when the packages exist in your repos
+# (Debian puts these in the 'non-free-firmware' component; skipped silently otherwise)
+firmware-linux
+firmware-realtek
+firmware-iwlwifi
+firmware-amd-graphics
+firmware-misc-nonfree

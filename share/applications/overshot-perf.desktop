@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Performance Mode
+Comment=Toggle animations, blur and shadows (Win+Shift+P)
+Exec=overshot-perf
+Icon=video-display
+Categories=Settings;System;
+Terminal=false

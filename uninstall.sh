@@ -16,10 +16,11 @@ rm -f /usr/local/bin/Hyprland /usr/local/bin/hyprland /usr/local/bin/hyprctl \
 for b in Hyprland hyprctl hyprpm; do rm -f "/usr/local/bin/$b" "/usr/local/bin/$b.real"; done
 for l in $HYPRLAND_LIBS; do rm -f "/usr/local/lib/$l"; done
 rm -rf "/usr/local/lib/hyprland-antix"
-for n in powermenu settings dock-toggle perf browser shot doctor benchmark; do
-    rm -f "/usr/local/bin/overshot-$n"
-done
+rm -f /usr/local/bin/overshot-*
 rm -rf /usr/local/share/overshot
+# desktop menu entries we own (package-provided .desktop files stay)
+rm -f /usr/local/share/applications/overshot-*.desktop
+rmdir --ignore-fail-on-non-empty /usr/local/share/applications 2>/dev/null || true
 ldconfig
 
 update-rc.d -f seatd-antix remove >/dev/null 2>&1 || true

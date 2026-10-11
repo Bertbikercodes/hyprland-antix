@@ -1,0 +1,40 @@
+# OVERSHOT OS — mandatory applications (a desktop is unusable without these)
+# installer FAILS if any of these cannot be installed
+# core desktop
+foot
+thunar
+tumbler
+thunar-archive-plugin
+thunar-volman
+udisks2
+polkitd
+xdg-user-dirs
+wofi
+waybar
+dunst
+swaybg
+swaylock
+grim
+slurp
+wl-clipboard
+cliphist
+# archives
+xarchiver
+7zip
+unzip
+unrar-free
+# viewers / editors
+zathura
+zathura-pdf-poppler
+imv
+mousepad
+# system tools
+htop
+ncdu
+acpi
+brightnessctl
+desktop-file-utils
+# music & audio
+audacious
+audacious-plugins
+pavucontrol

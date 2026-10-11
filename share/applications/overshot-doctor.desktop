@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=OVERSHOT Doctor
+Comment=System diagnostics for the OVERSHOT install
+Exec=foot -- overshot-doctor
+Icon=applications-science
+Categories=System;
+Terminal=false

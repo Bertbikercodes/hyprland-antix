@@ -76,14 +76,15 @@ mkdir -p "$SHARE"
 cp -r "$DEST/config" "$SHARE/config"
 cp -r "$DEST/assets" "$SHARE/assets"
 mkdir -p "$SHARE/scripts"
-for s in power-menu.sh dock-toggle.sh perf-mode.sh settings.sh browser.sh screenshot.sh doctor.sh benchmark.sh; do
+for s in power-menu.sh dock-toggle.sh perf-mode.sh settings.sh browser.sh screenshot.sh doctor.sh benchmark.sh lock.sh record.sh clipboard.sh; do
     [ -f "$DEST/scripts/$s" ] && cp -f "$DEST/scripts/$s" "$SHARE/scripts/$s"
 done
 chmod 755 "$SHARE/scripts"/*
 
 for l in powermenu:power-menu.sh settings:settings.sh dock-toggle:dock-toggle.sh \
          perf:perf-mode.sh browser:browser.sh shot:screenshot.sh \
-         doctor:doctor.sh benchmark:benchmark.sh; do
+         doctor:doctor.sh benchmark:benchmark.sh lock:lock.sh \
+         record:record.sh clipboard:clipboard.sh; do
     name="${l%%:*}"; src="${l#*:}"
     ln -sf "$SHARE/scripts/$src" "/usr/local/bin/overshot-$name"
 done
@@ -142,6 +143,9 @@ install_user_configs() {
            && ! command -v chromium >/dev/null 2>&1; then
             sed -i '/STRIP:browser/d' "$WB/dock.jsonc"
         fi
+        if ! command -v audacious >/dev/null 2>&1; then
+            sed -i '/STRIP:music/d' "$WB/dock.jsonc"
+        fi
     fi
 
     # wofi launcher
@@ -149,6 +153,12 @@ install_user_configs() {
         mkdir -p "$WF"
         cp -f "$DEST/config/launcher/wofi-config" "$WF/config"
         cp -f "$DEST/config/launcher/wofi-style.rasi" "$WF/style.rasi"
+    fi
+
+    # default applications for file types (only fresh; user edits win)
+    if [ ! -f "$HOME_DIR/.config/mimeapps.list" ]; then
+        mkdir -p "$HOME_DIR/.config"
+        cp -f "$DEST/config/mimeapps.list" "$HOME_DIR/.config/mimeapps.list"
     fi
 
     # dark GTK out of the box

@@ -1,0 +1,11 @@
+# OVERSHOT OS — recommended everyday applications (skipped with a warning if absent)
+firefox-esr
+galculator
+synaptic
+wf-recorder
+lxappearance
+fonts-noto-core
+fonts-symbola
+fonts-font-awesome
+mesa-utils
+xwayland

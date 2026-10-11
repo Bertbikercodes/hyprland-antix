@@ -1,0 +1,19 @@
+[Default Applications]
+text/html=firefox-esr.desktop
+x-scheme-handler/http=firefox-esr.desktop
+x-scheme-handler/https=firefox-esr.desktop
+application/pdf=org.pwmt.zathura.desktop
+image/png=imv.desktop
+image/jpeg=imv.desktop
+image/gif=imv.desktop
+image/webp=imv.desktop
+audio/mpeg=audacious.desktop
+audio/flac=audacious.desktop
+audio/x-vorbis+ogg=audacious.desktop
+audio/x-wav=audacious.desktop
+text/plain=mousepad.desktop
+application/zip=xarchiver.desktop
+application/x-7z-compressed=xarchiver.desktop
+application/x-tar=xarchiver.desktop
+application/gzip=xarchiver.desktop
+inode/directory=thunar.desktop

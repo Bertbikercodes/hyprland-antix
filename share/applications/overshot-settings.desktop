@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=OVERSHOT Settings
+GenericName=Settings
+Comment=Audio, network, appearance, keyboard, wallpaper, performance
+Exec=overshot-settings
+Icon=preferences-system
+Categories=Settings;System;
+Terminal=false
+Keywords=settings;audio;network;wallpaper;keyboard;

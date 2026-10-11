@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Screen Recorder
+Comment=Toggle screen recording (Win+Shift+R)
+Exec=overshot-record
+Icon=media-record
+Categories=Utility;AudioVideo;
+Terminal=false

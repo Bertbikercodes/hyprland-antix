@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Power Menu
+Comment=Log out, restart or shut down (Win+Esc)
+Exec=overshot-powermenu
+Icon=system-shutdown
+Categories=System;
+Terminal=false

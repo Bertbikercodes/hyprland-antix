@@ -19,6 +19,29 @@ have wofi       && ok "wofi launcher"          || bad "wofi missing (apps set)"
 have swaybg     && ok "swaybg wallpaper"       || bad "swaybg missing (apps set)"
 have dunst      && ok "dunst notifications"    || bad "dunst missing (apps set)"
 
+# application suite
+have thunar     && ok "thunar file manager"     || bad "thunar missing (mandatory)"
+have xarchiver  && ok "xarchiver archives"      || bad "xarchiver missing (mandatory)"
+have zathura    && ok "zathura PDF viewer"     || bad "zathura missing (mandatory)"
+have imv-wayland && ok "imv image viewer"      || bad "imv missing (mandatory)"
+have mousepad   && ok "mousepad text editor"   || bad "mousepad missing (mandatory)"
+have audacious  && ok "audacious music player" || bad "audacious missing (mandatory)"
+have swaylock   && ok "swaylock screen lock"   || bad "swaylock missing (mandatory)"
+have grim       && ok "grim screenshots"       || bad "grim missing (mandatory)"
+have wl-copy    && ok "wl-clipboard"           || bad "wl-clipboard missing (mandatory)"
+have cliphist   && ok "cliphist history"       || bad "cliphist missing (mandatory)"
+have pavucontrol && ok "pavucontrol mixer"      || bad "pavucontrol missing (mandatory)"
+have htop       && ok "htop monitor"           || bad "htop missing (mandatory)"
+have firefox-esr || ok "firefox-esr browser"   || echo "  [INFO] firefox-esr not installed (recommended set)"
+if have pactl || have pipewire || have pulseaudio; then
+    ok "audio stack present"
+else bad "no audio stack — sound will not work"; fi
+if [ -x /etc/init.d/connman ] || [ -x /etc/init.d/network-manager ]; then
+    ok "network manager present"
+else bad "no network manager present"; fi
+N=$(ls /usr/local/share/applications/overshot-*.desktop 2>/dev/null | wc -l)
+[ "$N" -ge 5 ] && ok "$N desktop menu entries" || bad "desktop menu entries missing (re-run installer)"
+
 MISSING=$(ldd /usr/local/bin/Hyprland 2>/dev/null | grep -c "not found" || true)
 [ "${MISSING:-0}" = "0" ] && ok "all Hyprland shared libraries resolve (ldd)" \
                         || bad "$MISSING Hyprland libraries not found"

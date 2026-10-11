@@ -1,0 +1,4 @@
+# installed ONLY when no audio stack is detected (pipewire/pulseaudio present = skip)
+# pulseaudio works fine under sysVinit (no systemd needed)
+pulseaudio
+pulseaudio-utils

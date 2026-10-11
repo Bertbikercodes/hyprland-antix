@@ -32,7 +32,7 @@ have wl-copy    && ok "wl-clipboard"           || bad "wl-clipboard missing (man
 have cliphist   && ok "cliphist history"       || bad "cliphist missing (mandatory)"
 have pavucontrol && ok "pavucontrol mixer"      || bad "pavucontrol missing (mandatory)"
 have htop       && ok "htop monitor"           || bad "htop missing (mandatory)"
-have firefox-esr || ok "firefox-esr browser"   || echo "  [INFO] firefox-esr not installed (recommended set)"
+if have firefox-esr; then ok "firefox-esr browser"; else echo "  [INFO] firefox-esr not installed (recommended set)"; fi
 if have pactl || have pipewire || have pulseaudio; then
     ok "audio stack present"
 else bad "no audio stack — sound will not work"; fi

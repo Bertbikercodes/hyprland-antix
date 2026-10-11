@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Lock Screen
+Comment=Lock the session (Win+L)
+Exec=overshot-lock
+Icon=system-lock-screen
+Categories=System;
+Terminal=false

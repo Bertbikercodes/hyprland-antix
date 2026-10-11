@@ -1,0 +1,5 @@
+# installed ONLY when no network manager is detected (connman/NM present = keep)
+# connman + cmst is the antiX-native stack (sysVinit friendly)
+connman
+wpasupplicant
+cmst

@@ -59,7 +59,22 @@ Every install writes a log to `/tmp/overshot-install-*.log`.
 ## What gets installed where
 
 - apt packages (~95, from the antiX/Debian repos): mesa, wayland, cairo, pango,
-  fonts, drivers — see `packages/core.txt`, `apps.txt`, `extras.txt`.
+  fonts, drivers — see `packages/core.txt`.
+- **App suite**: mandatory apps (terminal, files, browser, music, mixer,
+  lock, screenshots, clipboard, archives, viewers, editor) from
+  `packages/apps-mandatory.txt` — the installer FAILS with an exact reason if
+  one cannot be installed. Recommended everyday apps (browser, calculator,
+  synaptic, recorder, fonts) from `apps-recommended.txt` — skipped with a
+  warning when absent. Audio/network/bluetooth/firmware are DETECTED:
+  pipewire/pulseaudio, connman/NetworkManager and running bluetooth adapters
+  are left alone unless missing entirely.
+- **Verification**: every mandatory app binary checked on PATH, every
+  `.desktop` menu entry validated (`desktop-file-validate`) and only created
+  when its Exec target exists, file-type defaults set via `mimeapps.list`,
+  smoke tests run, and a full report written to
+  `/usr/local/share/overshot/install-report.txt`.
+- **Modes**: complete desktop (default, ~2 GB on a bare system) or minimal
+  (`install.sh --minimal`: core + mandatory apps, no browser/fonts extras).
 - `/usr/local/bin`: Hyprland, hyprctl, hyprpm, seatd, `overshot-*` helpers.
 - `/usr/local/lib`: the 6 Hypr-family libs.
 - `/usr/local/lib/hyprland-antix`: pinned libxkbcommon/libinput, **only** visible

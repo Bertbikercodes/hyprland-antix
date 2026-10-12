@@ -96,6 +96,54 @@ done
     && ok "app: tumblerd (file previews)" || bad "tumblerd missing (mandatory)"
 [ -f /usr/libexec/imv/imv ] && ok "app: imv viewer binary" || bad "imv viewer binary missing"
 
+# 9b. manifest consumption: every mandatory manifest package must be installed
+MISSED=0
+for mf in core.txt apps-mandatory.txt; do
+    MF="/opt/hyprland-antix/packages/$mf"
+    [ -f "$MF" ] || { bad "manifest missing: $mf"; MISSED=$((MISSED+1)); continue; }
+    while read -r pkg; do
+        case "$pkg" in ''|'#'*) continue ;; esac
+        if dpkg -s "$pkg" >/dev/null 2>&1; then
+            ok "manifest $mf: $pkg installed"
+        else
+            bad "manifest $mf: $pkg NOT installed (mandatory)"
+            MISSED=$((MISSED+1))
+        fi
+    done < <(grep -vE '^[[:space:]]*(#|$)' "$MF")
+done
+[ "$MISSED" -eq 0 ] && ok "all mandatory manifest packages consumed" || true
+# recommended manifest: report-only (optional set)
+if [ -f /opt/hyprland-antix/packages/apps-recommended.txt ]; then
+    ROK=0; RBAD=0
+    while read -r pkg; do
+        case "$pkg" in ''|'#'*) continue ;; esac
+        if dpkg -s "$pkg" >/dev/null 2>&1; then ROK=$((ROK+1)); else RBAD=$((RBAD+1)); fi
+    done < <(grep -vE '^[[:space:]]*(#|$)' /opt/hyprland-antix/packages/apps-recommended.txt)
+    if [ "$RBAD" -eq 0 ]; then
+        ok "recommended manifest fully installed ($ROK packages)"
+    else
+        skip "recommended manifest: $ROK installed, $RBAD absent (optional)"
+    fi
+fi
+
+# 9c. checksum tamper safety: a modified archive must be rejected
+RAW="https://raw.githubusercontent.com/Bertbikercodes/hyprland-antix/main/install.sh"
+if command -v curl >/dev/null 2>&1 && curl -fsL --retry 2 -o /tmp/overshot-verify-test-install.sh "$RAW" 2>/dev/null && [ -s /tmp/overshot-verify-test-install.sh ]; then
+    printf 'this is not the release tarball' > /tmp/overshot-tampered.tar.gz
+    if bash /tmp/overshot-verify-test-install.sh --verify-tarball /tmp/overshot-tampered.tar.gz >/dev/null 2>&1; then
+        bad "checksum tamper test: modified archive was ACCEPTED (must abort!)"
+    else
+        if bash /tmp/overshot-verify-test-install.sh --verify-tarball /tmp/overshot-tampered.tar.gz 2>&1 | grep -qi "checksum mismatch"; then
+            ok "checksum tamper test: modified archive rejected with checksum mismatch"
+        else
+            bad "checksum tamper test: rejected but without checksum-mismatch message"
+        fi
+    fi
+    rm -f /tmp/overshot-verify-test-install.sh /tmp/overshot-tampered.tar.gz
+else
+    skip "checksum tamper test: canonical installer not reachable"
+fi
+
 # 10. stacks
 if have pactl || have pipewire || have pulseaudio; then
     ok "audio stack present ($(have pipewire && echo pipewire || echo pulseaudio))"

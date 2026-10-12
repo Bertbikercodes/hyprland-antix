@@ -35,6 +35,8 @@ Diagnostics / plan / removal:
 curl -fsSL <raw>/install.sh | sudo bash -s -- --doctor
 curl -fsSL <raw>/install.sh | sudo bash -s -- --dry-run
 curl -fsSL <raw>/install.sh | sudo bash -s -- --uninstall
+# verify a downloaded tarball without installing (no root needed):
+curl -fsSL <raw>/install.sh | bash -s -- --verify-tarball hyprland-antix-0.56.2-antix1-x86_64.tar.gz
 ```
 
 Full step-by-step guide incl. verification commands: **docs/installation.md**.
@@ -104,7 +106,12 @@ build/ · patches/          trixie build system + gcc-15 compatibility patches
 
 ## Reliability & security notes
 
-- Downloaded tarballs are **sha256-verified**; a mismatch aborts the install.
+- Downloaded tarballs are **sha256-verified against the checksum pinned inside
+  install.sh itself** (the copy shipped in the tarball falls back to the published
+  `checksums/*.sha256` file, since a file cannot contain its own hash). A mismatch
+  aborts **before any extraction**, so a corrupted or tampered download can never
+  touch an existing installation. `install.sh --verify-tarball <file>` checks a
+  download without installing.
 - Disk-space check (**≥ 2.2 GB** for the complete suite) before install;
   clear `die()` on missing mandatory libs or failed mandatory apps (exact
   blocker in the report; reinstall keeps what is already installed).
@@ -126,11 +133,17 @@ build/ · patches/          trixie build system + gcc-15 compatibility patches
   RPATH correct; pinned libs NOT in the ldconfig cache
 - seatd SysVinit service starts and creates its socket; seat group created
 - full app suite installs from the manifests; mandatory-app verification;
-  `.desktop` entries validated with `desktop-file-validate`, each Exec
-  target checked on PATH; waybar/wofi configs parse as JSON; module
-  stripping (audio/browser/music) when the backend is absent
+  a manifest-consumption test asserts **every package in the mandatory
+  manifests is actually installed**; `.desktop` entries validated with
+  `desktop-file-validate`, each Exec target checked on PATH; waybar/wofi
+  configs parse as JSON; module stripping (audio/browser/music) when the
+  backend is absent
+- checksum tamper safety: a byte-modified archive is rejected with
+  "checksum mismatch" before extraction (tested with a deliberately
+  corrupted tarball); existing install left untouched
+- installer flags: --doctor / --dry-run / --minimal / --uninstall /
+  --verify-tarball (incl. combined `--minimal --dry-run`)
 - per-user configs + mimeapps.list land in root + every /home/*
-- installer flags: --doctor / --dry-run / --minimal / --uninstall
 
 **NOT tested (needs real hardware / a real GPU session) — owner validation pending:**
 

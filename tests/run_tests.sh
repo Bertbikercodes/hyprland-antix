@@ -101,6 +101,8 @@ MISSED=0
 for mf in core.txt apps-mandatory.txt; do
     MF="/opt/hyprland-antix/packages/$mf"
     [ -f "$MF" ] || { bad "manifest missing: $mf"; MISSED=$((MISSED+1)); continue; }
+    LIST="$(grep -vE '^[[:space:]]*(#|$)' "$MF")"
+    [ -n "$LIST" ] || { bad "manifest $mf is empty (mandatory)"; MISSED=$((MISSED+1)); continue; }
     while read -r pkg; do
         case "$pkg" in ''|'#'*) continue ;; esac
         if dpkg -s "$pkg" >/dev/null 2>&1; then
@@ -109,16 +111,17 @@ for mf in core.txt apps-mandatory.txt; do
             bad "manifest $mf: $pkg NOT installed (mandatory)"
             MISSED=$((MISSED+1))
         fi
-    done < <(grep -vE '^[[:space:]]*(#|$)' "$MF")
+    done <<< "$LIST"
 done
 [ "$MISSED" -eq 0 ] && ok "all mandatory manifest packages consumed" || true
 # recommended manifest: report-only (optional set)
 if [ -f /opt/hyprland-antix/packages/apps-recommended.txt ]; then
     ROK=0; RBAD=0
+    RLIST="$(grep -vE '^[[:space:]]*(#|$)' /opt/hyprland-antix/packages/apps-recommended.txt)"
     while read -r pkg; do
         case "$pkg" in ''|'#'*) continue ;; esac
         if dpkg -s "$pkg" >/dev/null 2>&1; then ROK=$((ROK+1)); else RBAD=$((RBAD+1)); fi
-    done < <(grep -vE '^[[:space:]]*(#|$)' /opt/hyprland-antix/packages/apps-recommended.txt)
+    done <<< "$RLIST"
     if [ "$RBAD" -eq 0 ]; then
         ok "recommended manifest fully installed ($ROK packages)"
     else

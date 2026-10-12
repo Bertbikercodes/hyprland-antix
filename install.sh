@@ -24,8 +24,13 @@ REPO="Bertbikercodes/hyprland-antix"
 VER="0.56.2-antix1"
 DEST="/opt/hyprland-antix"
 TARBALL="hyprland-antix-${VER}-x86_64.tar.gz"
-URL="https://github.com/${REPO}/releases/download/v${VER}/${TARBALL}"
+URL="${HYPRLAND_ANTIX_URL:-https://github.com/${REPO}/releases/download/v${VER}/${TARBALL}}"
 CHECKSUM_URL="https://raw.githubusercontent.com/${REPO}/main/checksums/${TARBALL}.sha256"
+# Pinned sha256 of the release tarball. This is the authoritative check for
+# downloads (stronger than fetching a checksum over the same channel).
+# The copy shipped INSIDE the tarball has this blanked (a file cannot contain
+# its own hash); it then falls back to CHECKSUM_URL.
+PINNED_SHA256="0b7c8107deee75c0e6a2139307fbb3e289dac3bf35cdea6c7362bfbb2f809079"
 REPORT="/tmp/overshot-install-report.txt"
 SUITE="complete"   # or "minimal"
 
@@ -112,6 +117,8 @@ OVERSHOT OS installer (hyprland-antix) — private test build
   install.sh --doctor         read-only diagnostics, exit 1 on problems
   install.sh --dry-run        show the plan (manifests, detection, sizes), change nothing
   install.sh --uninstall      remove all project-owned files (apt pkgs + user configs stay)
+  install.sh --verify-tarball F   verify a downloaded tarball against the pinned
+                              checksum (no root needed) and exit
   curl -fsSL <raw url> | sudo bash                 non-interactive complete install
   sudo HYPRLAND_ANTIX_TARBALL=file.tar.gz bash install.sh   offline install from a local tarball
 USAGE
@@ -163,6 +170,30 @@ doctor() {
 }
 
 # ---------- download / unpack ----------
+# verify a file's sha256 against the pinned checksum (or, if no pin, against
+# the published checksum file). Dies on mismatch. Returns the expected sum on
+# stdout on success.
+verify_tarball() {
+    local SRC="$1" WANT HAVE SUMFILE=""
+    if [ -n "$PINNED_SHA256" ]; then
+        WANT="$PINNED_SHA256"
+    else
+        SUMFILE="$(mktemp /tmp/overshot-sum.XXXXXX)"
+        if command -v curl >/dev/null 2>&1; then
+            curl -fsL --retry 2 -o "$SUMFILE" "$CHECKSUM_URL" || { rm -f "$SUMFILE"; die "cannot fetch checksum (${CHECKSUM_URL})"; }
+        else
+            wget -q -O "$SUMFILE" "$CHECKSUM_URL" || { rm -f "$SUMFILE"; die "cannot fetch checksum (${CHECKSUM_URL})"; }
+        fi
+        WANT="$(head -1 "$SUMFILE" | awk '{print $1}')"
+        rm -f "$SUMFILE"
+    fi
+    [ "${#WANT}" = "64" ] || die "checksum source malformed (no 64-hex sha256 available)"
+    HAVE="$(sha256sum "$SRC" | awk '{print $1}')"
+    [ "$WANT" = "$HAVE" ] || die "checksum mismatch — download corrupted or tampered; refusing to install"
+    say "checksum OK"
+    echo "$WANT"
+}
+
 download_unpack() {
     local SRC=""
     if [ -n "${HYPRLAND_ANTIX_TARBALL:-}" ]; then
@@ -177,21 +208,12 @@ download_unpack() {
         else
             wget -O "$SRC" "$URL" || die "download failed"
         fi
-        say "verifying checksum"
-        local SUMFILE
-        SUMFILE="$(mktemp /tmp/overshot-sum.XXXXXX)"
-        if command -v curl >/dev/null 2>&1; then
-            curl -fsL --retry 2 -o "$SUMFILE" "$CHECKSUM_URL" || die "cannot fetch checksum (${CHECKSUM_URL})"
+        if [ -n "$PINNED_SHA256" ]; then
+            say "verifying checksum (pinned)"
         else
-            wget -q -O "$SUMFILE" "$CHECKSUM_URL" || die "cannot fetch checksum (${CHECKSUM_URL})"
+            say "verifying checksum (published checksum file)"
         fi
-        local WANT HAVE
-        WANT="$(head -1 "$SUMFILE" | awk '{print $1}')"
-        rm -f "$SUMFILE"
-        [ "${#WANT}" = "64" ] || die "checksum file malformed"
-        HAVE="$(sha256sum "$SRC" | awk '{print $1}')"
-        [ "$WANT" = "$HAVE" ] || die "checksum mismatch — download corrupted or tampered; refusing to install"
-        say "checksum OK"
+        verify_tarball "$SRC" >/dev/null
     fi
     say "unpacking to ${DEST}"
     rm -rf "$DEST"; mkdir -p "$DEST"
@@ -567,16 +589,41 @@ finish() {
 # ---------- main ----------
 REAL_USER="${SUDO_USER:-}"
 
-case "${1:-}" in
+# collect flags first (they combine, e.g. --minimal --dry-run)
+FLAGS=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --doctor|--dry-run|--minimal) FLAGS="$FLAGS $1"; shift ;;
+        --verify-tarball)
+            shift
+            [ -n "${1:-}" ] || die "--verify-tarball needs a file argument"
+            [ -f "$1" ] || die "not a readable file: $1"
+            verify_tarball "$1" >/dev/null
+            printf "%s matches the pinned checksum for %s\n" "$1" "$TARBALL"
+            exit 0 ;;
+        --uninstall|--help|-h) FLAGS="$FLAGS $1"; shift ;;
+        "") shift ;;
+        *) die "unknown option '$1' (supported: --minimal --doctor --dry-run --uninstall --verify-tarball --help)" ;;
+    esac
+done
+
+for f in $FLAGS; do
+case "$f" in
     --doctor)    doctor ;;
     --dry-run)   banner
                  printf "mode: %s (glibc %s)\n" "$MODE" "$GLIBC"
                  printf "suite: %s\n" "$SUITE"
-                 printf "would download %s and verify its sha256\n" "$TARBALL"
+                 if [ -n "$PINNED_SHA256" ]; then
+                     printf "would download %s and verify it against the PINNED sha256 in this script\n" "$TARBALL"
+                 else
+                     printf "would download %s and verify it against the published checksum file\n" "$TARBALL"
+                 fi
                  printf "would install: core libs (packages/core.txt)\n"
                  printf "               mandatory apps (packages/apps-mandatory.txt)\n"
                  if [ "$SUITE" = "complete" ]; then
                      printf "               recommended apps (packages/apps-recommended.txt): browser, calculator, fonts\n"
+                 else
+                     printf "               recommended apps: SKIPPED (minimal mode)\n"
                  fi
                  printf "detections would run: audio stack, network stack, bluetooth, firmware\n"
                  printf "disk free on /: %s MB (complete desktop wants ~2.2 GB)\n" "$(( $(free_kb_root) / 1024 ))"
@@ -589,9 +636,8 @@ case "${1:-}" in
                  else say "cancelled"; fi
                  exit 0 ;;
     --help|-h)   usage; exit 0 ;;
-    "")          : ;;
-    *)           die "unknown option '$1' (supported: --minimal --doctor --dry-run --uninstall --help)" ;;
 esac
+done
 
 # real installs need root; logging to /tmp for support
 if [ "$(id -u)" = "0" ]; then

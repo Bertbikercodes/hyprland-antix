@@ -38,3 +38,4 @@ desktop-file-utils
 audacious
 audacious-plugins
 pavucontrol
+pciutils

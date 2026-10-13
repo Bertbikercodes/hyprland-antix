@@ -102,3 +102,10 @@ $mainMod = the Windows key. Full list in `~/.config/hypr/keybinds.conf`.
 | Win + Escape | power menu |
 | Print | screenshot selection → clipboard |
 | Win + M | quit to console |
+
+## NVIDIA GPUs
+
+The full install auto-installs the matching driver (branch-aware) when it
+detects an NVIDIA GPU; minimal installs and post-install changes go through
+`overshot-gpu` (Settings → GPU manager). Support matrix, rescue options and
+32-bit/Steam notes: **docs/nvidia.md**.

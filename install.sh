@@ -30,7 +30,7 @@ CHECKSUM_URL="https://raw.githubusercontent.com/${REPO}/main/checksums/${TARBALL
 # downloads (stronger than fetching a checksum over the same channel).
 # The copy shipped INSIDE the tarball has this blanked (a file cannot contain
 # its own hash); it then falls back to CHECKSUM_URL.
-PINNED_SHA256="c1179660e6affdd43862c75f201e3bdeddea1b6598392d9cf1e7b36847a07b65"
+PINNED_SHA256="6720e4537be969162869536673b4c0b05f935041d2fa5e681107e441d5522bde"
 REPORT="/tmp/overshot-install-report.txt"
 SUITE="complete"   # or "minimal"
 
@@ -562,7 +562,7 @@ uninstall_all() {
         rm -f /usr/local/bin/hyprland
         for l in $HYPRLAND_LIBS; do rm -f "/usr/local/lib/$l"; done
         rm -rf "$PINNED_DIR" /usr/local/share/overshot
-        for n in powermenu settings dock-toggle perf browser shot doctor benchmark lock record clipboard; do
+        for n in powermenu settings dock-toggle perf browser shot doctor benchmark lock record clipboard quickmenu; do
             rm -f "/usr/local/bin/overshot-$n"
         done
         rm -f /usr/local/share/applications/overshot-*.desktop

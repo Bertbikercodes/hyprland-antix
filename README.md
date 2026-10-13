@@ -56,7 +56,7 @@ systemd daemons). Installed in three levels — manifests in `packages/`:
 
 | Category | Applications |
 |---|---|
-| Mandatory (must succeed) | foot, thunar + tumbler previews + archive/volman plugins, udisks2, polkitd, xdg-user-dirs, waybar, wofi, dunst, swaybg, swaylock, grim+slurp, wl-clipboard+cliphist, xarchiver + 7zip/unzip/unrar-free, zathura (+pdf plugin), imv, mousepad, htop, ncdu, acpi, brightnessctl, audacious + plugins, pavucontrol, desktop-file-utils |
+| Mandatory (must succeed) | foot, thunar + tumbler previews + archive/volman plugins, udisks2, polkitd, xdg-user-dirs, waybar, wofi, dunst, swaybg, swaylock, grim+slurp, wl-clipboard+cliphist, xarchiver + 7zip/unzip/unrar-free, zathura (+pdf plugin), imv, mousepad, htop, ncdu, acpi, brightnessctl, audacious + plugins, pavucontrol, desktop-file-utils, pciutils |
 | Recommended (default) | firefox-esr, galculator, synaptic, wf-recorder, lxappearance, Noto/Symbola fonts, mesa-utils, xwayland |
 | Detected only | audio: pulseaudio **only if** no pipewire/pulse stack exists · network: connman + cmst **only if** no manager exists (antiX default stack) · bluetooth: blueman **only if** an adapter is present · firmware: from non-free-firmware repo when enabled |
 
@@ -83,6 +83,26 @@ After install: `/usr/local/share/overshot/install-report.txt` lists what was
 installed, skipped (with reasons), the menu entries, and what still needs
 real-hardware testing.
 
+## NVIDIA GPU support
+
+Full automatic NVIDIA driver support — systemd-free, official Debian packages
+only, driven by `overshot-gpu` (Settings → *GPU manager*):
+
+- Detection without any driver installed (PCI scan + `lspci -nn` + Debian's
+  `nvidia-detect` when present); hybrid Intel/AMD+NVIDIA laptops supported.
+- Chip-aware branch selection (no one-driver-fits-all): trixie reality is the
+  550 branch (GTX 900 up to RTX 40); Blackwell (RTX 50) is flagged
+  not-in-repos, Fermi/Kepler are flagged legacy-dropped → nouveau path.
+- Safe install: DKMS with header checks, conflict detection, config backups,
+  failed-build detection, and a `safe-mode` (pixman software renderer) rescue
+  session. Nouveau is never auto-removed; a failed install never breaks the
+  desktop.
+- Wayland wiring: `nvidia-drm modeset=1` via modprobe.d (no GRUB edits) +
+  guarded `nvidia.conf` (GBM/EGL env, software cursors) sourced in your
+  Hyprland config only while an NVIDIA driver is actually installed.
+- 40+ automated tests with faked PCI/dpkg/DKMS data (no real GPU here);
+  real-hardware validation pending. Details: **docs/nvidia.md**.
+
 ## Repo structure
 
 ```
@@ -100,7 +120,7 @@ scripts/                   setup.sh + overshot-* helpers (settings, lock, record
                            clipboard, powermenu, perf, doctor, benchmark, ...)
 tests/run_tests.sh         post-install smoke tests (also run by the installer)
 assets/                    original wallpaper + logo (this project's own work)
-docs/                      installation, troubleshooting, customization
+docs/                      installation, troubleshooting, customization, nvidia
 build/ · patches/          trixie build system + gcc-15 compatibility patches
 ```
 
@@ -148,8 +168,12 @@ build/ · patches/          trixie build system + gcc-15 compatibility patches
 **NOT tested (needs real hardware / a real GPU session) — owner validation pending:**
 
 - actual compositing, animations, blur, the rendered look of panel + dock
-- GPU drivers (Intel/AMD), multi-monitor, battery on a laptop, NVIDIA path
-  (NVIDIA + Wayland remains experimental upstream — nouveau/AMD/Intel advised)
+- GPU drivers (Intel/AMD), multi-monitor, battery on a laptop
+- NVIDIA on real hardware: detection/branch-mapping/conflict/DKMS-state/env
+  toggling are covered by 40+ automated tests with faked data, but no
+  physical NVIDIA GPU existed in the build environment — the real
+  install/DKMS build/Wayland session is owner validation pending
+  (NVIDIA + Wayland remains experimental upstream)
 - GUI launch of every app (menus/entries/databases verified; pixel-level
   launch verification needs the real session)
 - audio output, Wi-Fi scan, bluetooth pairing, brightness keys on hardware

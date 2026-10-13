@@ -43,9 +43,12 @@ Full step-by-step guide incl. verification commands: **docs/installation.md**.
 
 ## First session
 
-After `hyprland` you get, immediately usable: panel, dock, launcher
+After `hyprland` you get, immediately usable: panel with music visualizer
+(cava bars, hidden when silent) and quick-settings button, dock, launcher
 (Win+Space), terminal (Win+Enter), file manager (Win+E), browser (dock),
 music player (dock), volume (panel + pavucontrol), network (cmst from
+panel), settings menu (Win+S or panel gear -> volume / Wi-Fi / Bluetooth),
+quick settings (Win+A),
 settings menu), lock (Win+L), screenshots (Print), recorder (Win+Shift+R),
 clipboard history (Win+V), calculator (Win+C), power menu (Win+Esc).
 
@@ -56,7 +59,7 @@ systemd daemons). Installed in three levels — manifests in `packages/`:
 
 | Category | Applications |
 |---|---|
-| Mandatory (must succeed) | foot, thunar + tumbler previews + archive/volman plugins, udisks2, polkitd, xdg-user-dirs, waybar, wofi, dunst, swaybg, swaylock, grim+slurp, wl-clipboard+cliphist, xarchiver + 7zip/unzip/unrar-free, zathura (+pdf plugin), imv, mousepad, htop, ncdu, acpi, brightnessctl, audacious + plugins, pavucontrol, desktop-file-utils, pciutils |
+| Mandatory (must succeed) | foot, thunar + tumbler previews + archive/volman plugins, udisks2, polkitd, xdg-user-dirs, waybar, wofi, dunst, swaybg, swaylock, grim+slurp, wl-clipboard+cliphist, xarchiver + 7zip/unzip/unrar-free, zathura (+pdf plugin), imv, mousepad, htop, ncdu, acpi, brightnessctl, audacious + plugins, pavucontrol, cava, desktop-file-utils, pciutils |
 | Recommended (default) | firefox-esr, galculator, synaptic, wf-recorder, lxappearance, Noto/Symbola fonts, mesa-utils, xwayland |
 | Detected only | audio: pulseaudio **only if** no pipewire/pulse stack exists · network: connman + cmst **only if** no manager exists (antiX default stack) · bluetooth: blueman **only if** an adapter is present · firmware: from non-free-firmware repo when enabled |
 
@@ -152,6 +155,13 @@ build/ · patches/          trixie build system + gcc-15 compatibility patches
 - `hyprland --version` runs natively; **no** unresolved libraries (ldd);
   RPATH correct; pinned libs NOT in the ldconfig cache
 - seatd SysVinit service starts and creates its socket; seat group created
+- music visualizer pipeline: cava raw mode -> od framing -> awk bars ->
+  Waybar JSON, with fake cava data (bars correct, silence hides the module);
+  verified under gawk AND mawk (Debian default) — mawk is byte-oriented,
+  the script uses literal bar arrays, not substr
+- quick-settings menu wiring: overshot-quickmenu symlink, volume (pactl),
+  Wi-Fi (cmst), Bluetooth (blueman -> bluetoothctl fallback), Win+S/Win+A
+  keybinds, uninstall coverage
 - full app suite installs from the manifests; mandatory-app verification;
   a manifest-consumption test asserts **every package in the mandatory
   manifests is actually installed**; `.desktop` entries validated with

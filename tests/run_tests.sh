@@ -324,6 +324,64 @@ if [ -f "$GPULIB" ] && [ -x "$GPUMGR" ]; then
         && ok "gpu: doctor has GPU checks" || bad "gpu: doctor missing GPU checks"
 fi
 
+# 9f. music visualizer + quick settings menu
+if [ -x "$SHARE/scripts/waybar-cava" ] && [ -f "$SHARE/scripts/quickmenu.sh" ]; then
+    grep -qx "cava" /opt/hyprland-antix/packages/apps-mandatory.txt \
+        && ok "vis: cava is a mandatory package" || bad "vis: cava missing from apps-mandatory.txt"
+    CC="$SHARE/config/cava/cava.conf"
+    grep -q "method = raw" "$CC" && grep -q "bit_format = 8bit" "$CC" \
+        && ok "vis: cava raw-mode config shipped" || bad "vis: cava.conf wrong"
+    # waybar wiring: both modules registered
+    WC="$SHARE/config/waybar/config.jsonc"
+    grep -q '"custom/visualizer"' "$WC" && grep -q '"custom/quick"' "$WC" \
+        && ok "vis: waybar has visualizer + quick-settings modules" || bad "vis: waybar modules missing"
+    grep -q '"modules-right": \["custom/visualizer"' "$WC" \
+        && ok "vis: visualizer placed on the right bar" || bad "vis: visualizer not in modules-right"
+    # functional: fake cava emits known frames -> bars, then hide on silence
+    mkdir -p /tmp/vis-test
+    cat > /tmp/vis-test/cava <<'EOFAKECAVA'
+#!/bin/sh
+printf '\010\030\050\070\110\130\150\170\210\230\250\270\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000'
+EOFAKECAVA
+    chmod +x /tmp/vis-test/cava
+    cp "$CC" /tmp/vis-test/cava.conf
+    OUT=$(PATH="/tmp/vis-test:$PATH" OVERSHOT_CAVA_CONF=/tmp/vis-test/cava.conf \
+          OVERSHOT_CAVA_ONCE=1 OVERSHOT_QUIET_FRAMES=2 \
+          timeout 10 "$SHARE/scripts/waybar-cava" 2>/dev/null)
+    L1=$(printf '%s\n' "$OUT" | sed -n 1p)
+    L3=$(printf '%s\n' "$OUT" | sed -n 3p)
+    printf '%s' "$L1" | grep -qF '▁▁▂▂▃▃▄▄▅▅▆▆' \
+        && ok "vis: bars rendered from cava raw data" || bad "vis: bar rendering wrong: $L1"
+    [ "$L3" = '{"text": ""}' ] \
+        && ok "vis: silence hides the module (empty JSON)" || bad "vis: silence not handled: $L3"
+    # no cava binary -> clean exit, waybar exec-if hides module
+    PATH="/usr/local/bin" OVERSHOT_CAVA_CONF="$CC" timeout 5 "$SHARE/scripts/waybar-cava" >/dev/null 2>&1
+    # (cava from apt is present in a full install, so only assert the guard exists)
+    grep -q 'command -v cava' "$SHARE/scripts/waybar-cava" \
+        && ok "vis: cava presence guard in script" || bad "vis: no cava guard"
+    rm -rf /tmp/vis-test
+
+    # quick settings menu
+    [ -x /usr/local/bin/overshot-quickmenu ] \
+        && ok "quick: overshot-quickmenu on PATH" || bad "quick: symlink missing"
+    QM="$SHARE/scripts/quickmenu.sh"
+    grep -q "set-sink-volume @DEFAULT_SINK@" "$QM" && grep -q "set-sink-mute" "$QM" \
+        && ok "quick: volume control wired" || bad "quick: volume handling missing"
+    grep -q "cmst" "$QM" && grep -q "blueman-manager" "$QM" && grep -q "bluetoothctl" "$QM" \
+        && ok "quick: wifi + bluetooth options with fallbacks" || bad "quick: wifi/bt handling missing"
+    grep -q "overshot-settings" "$QM" \
+        && ok "quick: menu links to the settings app" || bad "quick: settings link missing"
+    # keybinds: settings + quick menu reachable from keyboard
+    grep -q '$mainMod, S, exec, overshot-settings' /opt/hyprland-antix/config/hypr/keybinds.conf \
+        && ok "quick: SUPER+S opens settings" || bad "quick: settings keybind missing"
+    grep -q '$mainMod, A, exec, overshot-quickmenu' /opt/hyprland-antix/config/hypr/keybinds.conf \
+        && ok "quick: SUPER+A opens quick menu" || bad "quick: quickmenu keybind missing"
+    # uninstall covers the new symlink
+    grep -q "overshot-\$n" /opt/hyprland-antix/install.sh \
+        && grep -q "quickmenu" /opt/hyprland-antix/install.sh \
+        && ok "quick: uninstall removes quickmenu link" || bad "quick: uninstall misses quickmenu"
+fi
+
 # 10. stacks
 if have pactl || have pipewire || have pulseaudio; then
     ok "audio stack present ($(have pipewire && echo pipewire || echo pulseaudio))"

@@ -57,6 +57,34 @@ getent group seat >/dev/null 2>&1 && ok "seat group exists" || bad "seat group m
 [ -f "$HOME/.config/waybar/config.jsonc" ] && ok "waybar config present" || bad "waybar config missing"
 [ -f /usr/local/share/overshot/assets/overshot-wallpaper.png ] && ok "wallpaper asset present" || bad "wallpaper asset missing"
 
+# GPU / NVIDIA state (read-only)
+GPULIB=/usr/local/share/overshot/scripts/nvidia-lib.sh
+if [ -f "$GPULIB" ] && command -v gpu_nvidia_present >/dev/null 2>&1; then
+    :  # already sourced (e.g. via overshot-gpu tests)
+fi
+if [ -f "$GPULIB" ]; then
+    # shellcheck disable=SC1091
+    . "$GPULIB"
+    if gpu_nvidia_present; then
+        if gpu_dpkg_has nvidia-driver; then
+            gpu_module_loaded && ok "nvidia module loaded" || bad "nvidia driver installed but module not loaded (reboot; then dmesg | grep -i nvrm)"
+            gpu_modeset_on && ok "nvidia-drm modeset enabled (Wayland-ready)" || bad "nvidia-drm modeset disabled — Hyprland will fail (run: sudo overshot-gpu repair)"
+            [ -f /usr/share/glvnd/egl_vendor.d/10_nvidia.json ] && ok "nvidia EGL vendor present" || bad "nvidia EGL vendor file missing (reinstall driver)"
+            [ -f /usr/share/vulkan/icd.d/nvidia_icd.json ] && ok "nvidia Vulkan ICD present" || bad "nvidia Vulkan ICD missing"
+            CONF=$(gpu_conflicting_branches)
+            [ -z "$CONF" ] && ok "no conflicting driver branches" || bad "conflicting drivers: $CONF"
+            grep -qF "OVERSHOT nvidia env" "$HOME/.config/hypr/hyprland.conf" 2>/dev/null \
+                && ok "hyprland NVIDIA env enabled" || bad "hyprland NVIDIA env not sourced (sudo overshot-gpu repair)"
+        else
+            ok "NVIDIA GPU on the free nouveau driver ('overshot-gpu install' adds the proprietary one)"
+        fi
+    else
+        ok "no NVIDIA GPU — free mesa drivers in charge"
+    fi
+else
+    bad "gpu: nvidia-lib.sh missing (GPU diagnostics unavailable)"
+fi
+
 if [ -n "${SUDO_USER:-}" ] && id "${SUDO_USER}" >/dev/null 2>&1; then
     GRPS=$(id -nG "${SUDO_USER}")
     case "$GRPS" in *video*|*input*|*seat*) ok "user ${SUDO_USER} has device groups ($GRPS)" ;;

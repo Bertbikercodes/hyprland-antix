@@ -76,7 +76,7 @@ mkdir -p "$SHARE"
 cp -r "$DEST/config" "$SHARE/config"
 cp -r "$DEST/assets" "$SHARE/assets"
 mkdir -p "$SHARE/scripts"
-for s in power-menu.sh dock-toggle.sh perf-mode.sh settings.sh browser.sh screenshot.sh doctor.sh benchmark.sh lock.sh record.sh clipboard.sh; do
+for s in power-menu.sh dock-toggle.sh perf-mode.sh settings.sh browser.sh screenshot.sh doctor.sh benchmark.sh lock.sh record.sh clipboard.sh gpu-manager.sh nvidia-lib.sh; do
     [ -f "$DEST/scripts/$s" ] && cp -f "$DEST/scripts/$s" "$SHARE/scripts/$s"
 done
 chmod 755 "$SHARE/scripts"/*
@@ -84,7 +84,7 @@ chmod 755 "$SHARE/scripts"/*
 for l in powermenu:power-menu.sh settings:settings.sh dock-toggle:dock-toggle.sh \
          perf:perf-mode.sh browser:browser.sh shot:screenshot.sh \
          doctor:doctor.sh benchmark:benchmark.sh lock:lock.sh \
-         record:record.sh clipboard:clipboard.sh; do
+         record:record.sh clipboard:clipboard.sh gpu:gpu-manager.sh; do
     name="${l%%:*}"; src="${l#*:}"
     ln -sf "$SHARE/scripts/$src" "/usr/local/bin/overshot-$name"
 done

@@ -39,3 +39,4 @@ audacious
 audacious-plugins
 pavucontrol
 pciutils
+cava

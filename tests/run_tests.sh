@@ -147,6 +147,183 @@ else
     skip "checksum tamper test: canonical installer not reachable"
 fi
 
+# 9d. GPU manager (NVIDIA subsystem) — detection, mapping, conflicts, safety.
+# All GPU data is FAKED via OVERSHOT_GPU_TEST_DIR (nvidia-lib.sh test hooks);
+# no real GPU exists in this test environment.
+GPULIB=/opt/hyprland-antix/scripts/nvidia-lib.sh
+GPUMGR=/opt/hyprland-antix/scripts/gpu-manager.sh
+if [ -f "$GPULIB" ] && [ -x "$GPUMGR" ]; then
+    ok "gpu: nvidia-lib.sh + gpu-manager.sh present in bundle"
+    # shellcheck disable=SC1090
+    . "$GPULIB"
+
+    mkgpu() { # mkgpu <dir> "<addr>|<vendor>|<device>|<class>"...
+        D="$1"; mkdir -p "$D/sys/bus/pci/devices"
+        shift
+        for spec in "$@"; do
+            IFS='|' read -r a v d c <<< "$spec"
+            mkdir -p "$D/sys/bus/pci/devices/$a"
+            echo "0x$v" > "$D/sys/bus/pci/devices/$a/vendor"
+            echo "0x$d" > "$D/sys/bus/pci/devices/$a/device"
+            echo "$c" > "$D/sys/bus/pci/devices/$a/class"
+        done
+    }
+
+    # no GPU at all
+    T=$(mktemp -d); mkgpu "$T"
+    OVERSHOT_GPU_TEST_DIR="$T" gpu_nvidia_present && bad "gpu: false NVIDIA detection on empty system" || ok "gpu: no-GPU system correctly reports none"
+    rm -rf "$T"
+
+    # single NVIDIA GPU (GM204 = GTX 970)
+    T=$(mktemp -d); mkgpu "$T" "0000:01:00.0|10de|1b81|0x030000"
+    printf '01:00.0 VGA compatible controller: NVIDIA Corporation GM204 [GeForce GTX 970] [10de:1b81]\n' > "$T/lspci.txt"
+    OVERSHOT_GPU_TEST_DIR="$T" gpu_nvidia_present && ok "gpu: NVIDIA GPU detected via sysfs" || bad "gpu: NVIDIA GPU not detected"
+    LINE=$(OVERSHOT_GPU_TEST_DIR="$T" gpu_scan_all | head -1)
+    echo "$LINE" | grep -q "10de:1b81" && ok "gpu: PCI id parsed (10de:1b81)" || bad "gpu: PCI id parse failed ($LINE)"
+    CHIP=$(OVERSHOT_GPU_TEST_DIR="$T" gpu_chip_of "NVIDIA GM204 [GeForce GTX 970]")
+    [ "$CHIP" = "GM204" ] && ok "gpu: chip codename extracted (GM204)" || bad "gpu: chip extraction failed ($CHIP)"
+    rm -rf "$T"
+
+    # hybrid: Intel iGPU + NVIDIA dGPU — both visible, iGPU untouched
+    T=$(mktemp -d); mkgpu "$T" "0000:00:02.0|8086|1912|0x030000" "0000:01:00.0|10de|2191|0x030000"
+    N=$(OVERSHOT_GPU_TEST_DIR="$T" gpu_scan_all | wc -l)
+    [ "$N" = 2 ] && ok "gpu: hybrid system lists both GPUs (iGPU preserved)" || bad "gpu: hybrid scan found $N GPUs"
+    rm -rf "$T"
+
+    # branch mapping matrix (chip -> support level)
+    for pair in "GF104:legacy-dropped" "GK104:legacy-dropped" "GM204:supported" "GP104:supported" "TU106:supported" "GA102:supported" "AD103:supported" "GB202:too-new"; do
+        CH=${pair%%:*}; WANT=${pair##*:}
+        GOT=$(gpu_nvidia_branch_for_chip "$CH" | awk '{print $1}')
+        [ "$GOT" = "$WANT" ] && ok "gpu: branch map $CH -> $WANT" || bad "gpu: branch map $CH -> $GOT (want $WANT)"
+    done
+
+    # conflicting driver branches installed together
+    T=$(mktemp -d)
+    printf 'nvidia-driver\nnvidia-legacy-390xx-driver\n' > "$T/dpkg.txt"
+    C=$(OVERSHOT_GPU_TEST_DIR="$T" gpu_conflicting_branches)
+    [ -n "$C" ] && ok "gpu: conflicting branches detected ($C)" || bad "gpu: conflict not detected"
+    rm -rf "$T"
+
+    # DKMS state parsing
+    T=$(mktemp -d)
+    for st in "installed" "broken" "failed"; do
+        case "$st" in failed) echo "nvidia/550.163.01+deb13, 6.1.0, x86_64: install failed (bad exit status: 10)" ;; *) echo "nvidia/550.163.01+deb13, 6.1.0, x86_64: $st" ;; esac > "$T/dkms.txt"
+        GOT=$(OVERSHOT_GPU_TEST_DIR="$T" gpu_dkms_state)
+        [ "$GOT" = "$st" ] && ok "gpu: dkms state '$st' parsed" || bad "gpu: dkms parse got '$GOT' for $st"
+    done
+    : > "$T/dkms.txt"
+    [ "$(OVERSHOT_GPU_TEST_DIR="$T" gpu_dkms_state)" = "none" ] && ok "gpu: dkms absent -> none" || bad "gpu: dkms none parse"
+    rm -rf "$T"
+
+    # missing kernel headers
+    T=$(mktemp -d); printf 'kver\n' > /dev/null; echo "6.12.17-antix" > "$T/kver.txt"; : > "$T/apt-policy.txt"
+    OVERSHOT_GPU_TEST_DIR="$T" gpu_headers_available && bad "gpu: headers reported available when missing" || ok "gpu: missing kernel headers detected"
+    rm -rf "$T"
+
+    # modeset parameter
+    T=$(mktemp -d); echo Y > "$T/modeset.txt"
+    OVERSHOT_GPU_TEST_DIR="$T" gpu_modeset_on && ok "gpu: modeset=1 detected" || bad "gpu: modeset=1 not detected"
+    echo N > "$T/modeset.txt"
+    OVERSHOT_GPU_TEST_DIR="$T" gpu_modeset_on && bad "gpu: modeset=0 misdetected as on" || ok "gpu: modeset=0 detected as off"
+    rm -rf "$T"
+
+    # offline / empty repos: install must refuse, not break
+    T=$(mktemp -d); mkgpu "$T" "0000:01:00.0|10de|1b81|0x030000"
+    printf '01:00.0 VGA compatible controller: NVIDIA Corporation GM204 [GeForce GTX 970] [10de:1b81]\n' > "$T/lspci.txt"; : > "$T/apt-policy.txt"
+    OUT=$(OVERSHOT_GPU_TEST_DIR="$T" bash "$GPUMGR" install --batch 2>&1); RC=$?
+    echo "$OUT" | grep -q "not found in repositories" && ok "gpu: offline install refuses with clear error" || bad "gpu: offline install message unclear: $OUT"
+    [ "$RC" != 0 ] && ok "gpu: offline install exits nonzero" || bad "gpu: offline install exited 0"
+    rm -rf "$T"
+
+    # safe mode prints the rescue command without starting a session
+    OUT=$(OVERSHOT_GPU_TEST_EXEC=1 bash "$GPUMGR" safe-mode 2>&1)
+    echo "$OUT" | grep -q "WLR_RENDERER=pixman" && ok "gpu: safe-mode uses software renderer (pixman)" || bad "gpu: safe-mode missing pixman renderer"
+    echo "$OUT" | grep -q "test mode" && ok "gpu: safe-mode test hook works" || bad "gpu: safe-mode test hook missing"
+
+    # no systemd anywhere in the GPU subsystem (static)
+    if grep -rq "systemctl" "$GPULIB" "$GPUMGR" /opt/hyprland-antix/scripts/nvidia-lib.sh 2>/dev/null; then
+        bad "gpu: systemctl usage found (must stay systemd-free)"
+    else
+        ok "gpu: GPU subsystem is systemctl-free"
+    fi
+else
+    bad "gpu: manager scripts missing from bundle"
+fi
+
+# 9e. GPU desktop integration: real functions from nvidia-lib.sh
+if [ -f "$GPULIB" ] && [ -x "$GPUMGR" ]; then
+    D=/opt/hyprland-antix/share/applications/overshot-gpu.desktop
+    [ -f "$D" ] && grep -q "Exec=foot -- overshot-gpu" "$D" \
+        && ok "gpu: desktop menu entry present" || bad "gpu: desktop entry missing/invalid"
+    grep -q "GPU manager" /opt/hyprland-antix/scripts/settings.sh \
+        && ok "gpu: settings menu has GPU manager entry" || bad "gpu: settings entry missing"
+    NC=/opt/hyprland-antix/config/hypr/nvidia.conf
+    grep -q "GBM_BACKEND,nvidia-drm" "$NC" && grep -q "__GLX_VENDOR_LIBRARY_NAME,nvidia" "$NC" \
+        && ok "gpu: nvidia.conf env template correct" || bad "gpu: nvidia.conf template wrong"
+
+    # enable/disable via the REAL functions, isolated in a fake home + share
+    T=$(mktemp -d)
+    mkdir -p "$T/home/.config/hypr" "$T/share/config/hypr" "$T/etc"
+    printf 'monitor = , preferred, auto, 1\n' > "$T/home/.config/hypr/hyprland.conf"
+    cp /opt/hyprland-antix/config/hypr/nvidia.conf "$T/share/config/hypr/"
+    printf 'nvidia-driver\n' > "$T/dpkg.txt"
+    OUT=$(bash -c '
+        . /opt/hyprland-antix/scripts/nvidia-lib.sh
+        export OVERSHOT_GPU_TEST_DIR="$1" OVERSHOT_GPU_TEST_HOMES="$1/home" \
+               OVERSHOT_GPU_TEST_SHARE="$1/share" OVERSHOT_GPU_TEST_ETC="$1/etc"
+        enable_hyprland_env
+        configure_modeset
+    ' _ "$T" 2>&1)
+    HC="$T/home/.config/hypr/hyprland.conf"
+    grep -qF "OVERSHOT nvidia env" "$HC" && grep -q "source = $T/home/.config/hypr/nvidia.conf" "$HC" \
+        && ok "gpu: hyprland nvidia env enabled via real function" || bad "gpu: env enable failed ($OUT)"
+    [ -f "$HC.overshot-gpu-backup" ] && ok "gpu: hyprland.conf backed up before edit" || bad "gpu: no backup made"
+    [ -f "$T/home/.config/hypr/nvidia.conf" ] && ok "gpu: user nvidia.conf placed" || bad "gpu: nvidia.conf not placed"
+    [ -f "$T/etc/overshot-nvidia-modeset.conf" ] && grep -q "modeset=1" "$T/etc/overshot-nvidia-modeset.conf" \
+        && ok "gpu: modprobe modeset config written" || bad "gpu: modprobe config missing"
+    # re-run enable: must be idempotent (no duplicate lines)
+    bash -c '. /opt/hyprland-antix/scripts/nvidia-lib.sh
+        export OVERSHOT_GPU_TEST_DIR="$1" OVERSHOT_GPU_TEST_HOMES="$1/home" \
+               OVERSHOT_GPU_TEST_SHARE="$1/share" OVERSHOT_GPU_TEST_ETC="$1/etc"
+        enable_hyprland_env' _ "$T" >/dev/null 2>&1
+    N=$(grep -cF "OVERSHOT nvidia env" "$HC")
+    [ "$N" = 1 ] && ok "gpu: env enable idempotent (single source line)" || bad "gpu: enable duplicated lines ($N)"
+    # disable: managed lines gone, user content preserved
+    ORIG="monitor = , preferred, auto, 1"
+    bash -c '. /opt/hyprland-antix/scripts/nvidia-lib.sh
+        export OVERSHOT_GPU_TEST_DIR="$1" OVERSHOT_GPU_TEST_HOMES="$1/home" \
+               OVERSHOT_GPU_TEST_SHARE="$1/share" OVERSHOT_GPU_TEST_ETC="$1/etc"
+        disable_hyprland_env' _ "$T" >/dev/null 2>&1
+    grep -qF "OVERSHOT nvidia env" "$HC" && bad "gpu: disable left managed lines behind" || ok "gpu: env disable clean"
+    grep -qF "$ORIG" "$HC" && ok "gpu: user config content preserved through toggle" || bad "gpu: user config damaged"
+    # a second disable must not touch anything (no error, no changes)
+    S1=$(md5sum "$HC" | cut -d' ' -f1)
+    bash -c '. /opt/hyprland-antix/scripts/nvidia-lib.sh
+        export OVERSHOT_GPU_TEST_DIR="$1" OVERSHOT_GPU_TEST_HOMES="$1/home"
+        disable_hyprland_env' _ "$T" >/dev/null 2>&1
+    S2=$(md5sum "$HC" | cut -d' ' -f1)
+    [ "$S1" = "$S2" ] && ok "gpu: disable idempotent (no churn when absent)" || bad "gpu: disable churned a clean config"
+    rm -rf "$T"
+
+    # modeset: existing user config with modeset=0 must NOT be overridden
+    T=$(mktemp -d); mkdir -p "$T/etc" "$T/home/.config/hypr"
+    printf 'options nvidia-drm modeset=0\n' > "$T/etc/myown.conf"
+    printf 'nvidia-driver\n' > "$T/dpkg.txt"
+    OUT=$(bash -c '. /opt/hyprland-antix/scripts/nvidia-lib.sh
+        export OVERSHOT_GPU_TEST_DIR="$1" OVERSHOT_GPU_TEST_ETC="$1/etc" OVERSHOT_GPU_TEST_HOMES="$1/home"
+        configure_modeset' _ "$T" 2>&1)
+    echo "$OUT" | grep -q "leaving YOUR file alone" && ok "gpu: user modeset=0 config respected (warned, not overridden)" || bad "gpu: user modprobe overridden: $OUT"
+    [ -f "$T/etc/overshot-nvidia-modeset.conf" ] && bad "gpu: wrote duplicate config next to user's own" || ok "gpu: no duplicate modprobe config written"
+    rm -rf "$T"
+
+    # installer integration: GPU phase exists in install.sh
+    grep -q "install_gpu_driver_if_needed" /opt/hyprland-antix/install.sh \
+        && ok "gpu: installer has GPU phase" || bad "gpu: installer GPU phase missing"
+    # doctor knows about the GPU section
+    grep -q "nvidia-lib" /opt/hyprland-antix/scripts/doctor.sh \
+        && ok "gpu: doctor has GPU checks" || bad "gpu: doctor missing GPU checks"
+fi
+
 # 10. stacks
 if have pactl || have pipewire || have pulseaudio; then
     ok "audio stack present ($(have pipewire && echo pipewire || echo pulseaudio))"

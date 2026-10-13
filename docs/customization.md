@@ -66,3 +66,17 @@ overshot-benchmark              # writes /tmp/overshot-benchmark.txt
 ```
 Reports measured RSS of the desktop components, free RAM, process count.
 Measured vs estimated values are labeled in the report.
+
+## Panel music visualizer
+
+`scripts/waybar-cava` pipes cava's raw mode (12 bars, 8-bit) through od+awk
+and emits Waybar JSON. It appears on the right of the panel while sound plays
+and hides itself after ~25 silent frames. Click it to open the music player.
+Tweak `config/cava/cava.conf` (bars, framerate, smoothing) and re-login.
+
+## Quick settings
+
+`overshot-quickmenu` (panel gear icon or Win+A) opens a wofi menu with
+volume +/-/mute (pactl), audio mixer (pavucontrol), Wi-Fi (cmst), Bluetooth
+(blueman, or bluetoothctl in foot if blueman is absent) and a link to the
+full settings menu (Win+S). No daemon: every option is an on-demand command.

@@ -1,0 +1,39 @@
+#!/bin/sh
+# OVERSHOT OS — Waybar music visualizer.
+# cava (raw mode) -> 12 unicode height bars, emitted as Waybar JSON.
+# Silent for a while -> empty text -> Waybar hides the module.
+# Self-loops, so Waybar only needs to start us once. No daemon otherwise.
+
+CONF="${OVERSHOT_CAVA_CONF:-/usr/local/share/overshot/config/cava/cava.conf}"
+QUIET="${OVERSHOT_QUIET_FRAMES:-25}"     # frames of pure silence before hiding
+ONCE="${OVERSHOT_CAVA_ONCE:-0}"          # test hook: exit after one cava run
+BARS=12
+
+command -v cava >/dev/null 2>&1 || exit 1
+[ -f "$CONF" ] || exit 1
+command -v od >/dev/null 2>&1 || exit 1
+
+while :; do
+    cava -p "$CONF" 2>/dev/null \
+        | stdbuf -oL od -An -tu1 -w"$BARS" \
+        | awk -v quiet="$QUIET" '
+            BEGIN { b[0] = "▁"; b[1] = "▂"; b[2] = "▃"; b[3] = "▄"; b[4] = "▅"; b[5] = "▆"; b[6] = "▇"; b[7] = "█"; still = 0 }
+            {
+                out = ""; sum = 0
+                for (i = 1; i <= NF; i++) {
+                    v = $i + 0; sum += v
+                    n = int(v / 32); if (n > 7) n = 7
+                    out = out b[n]
+                }
+                if (sum == 0) {
+                    still++
+                    if (still >= quiet) { print "{\"text\": \"\"}"; fflush(); next }
+                } else {
+                    still = 0
+                }
+                print "{\"text\": \"" out "\"}"
+                fflush()
+            }'
+    [ "$ONCE" = 1 ] && exit 0
+    sleep 1
+done

@@ -8,7 +8,7 @@
   "spacing": 6,
   "modules-left": ["custom/brand", "hyprland/workspaces", "hyprland/window"],
   "modules-center": ["clock"],
-  "modules-right": ["network", "pulseaudio", "battery", "cpu", "memory", "tray", "custom/power"],
+  "modules-right": ["custom/visualizer", "network", "pulseaudio", "battery", "cpu", "memory", "custom/quick", "tray", "custom/power"],
 
   "custom/brand": {
     "format": "OVERSHOT",
@@ -49,6 +49,19 @@
   "cpu": { "format": "  {usage}%", "interval": 5, "tooltip": false },
   "memory": { "format": "  {percentage}%", "interval": 5, "tooltip": false },
   "tray": { "spacing": 6 },
+  "custom/visualizer": {
+    "exec": "/usr/local/share/overshot/scripts/waybar-cava",
+    "exec-if": "command -v cava",
+    "return-type": "json",
+    "format": "{}",
+    "tooltip": false,
+    "on-click": "audacious"
+  },
+  "custom/quick": {
+    "format": " \uf013",
+    "tooltip": "Quick settings: volume \u00b7 Wi-Fi \u00b7 Bluetooth",
+    "on-click": "overshot-quickmenu"
+  },
   "custom/power": {
     "format": "",
     "tooltip": false,

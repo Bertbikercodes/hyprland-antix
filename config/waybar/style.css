@@ -72,3 +72,11 @@ window#waybar {
     background: rgba(248, 81, 73, 0.15);
     border-radius: 8px;
 }
+
+/* music visualizer: compact, accent-colored bars */
+#custom-visualizer {
+    padding: 0 8px;
+    font-size: 11px;
+    color: #58c4dd;
+}
+#custom-visualizer:empty { margin: 0; padding: 0; }

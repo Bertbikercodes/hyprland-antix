@@ -27,5 +27,16 @@ update-rc.d -f seatd-antix remove >/dev/null 2>&1 || true
 service seatd-antix stop >/dev/null 2>&1 || true
 rm -f /etc/init.d/seatd-antix /run/seatd-antix.pid
 
+# GPU manager: our modprobe config + the guarded NVIDIA source lines in user
+# hyprland.conf. The NVIDIA driver itself is an apt package and stays by
+# policy; the user's own config content is untouched.
+rm -f /etc/modprobe.d/overshot-nvidia-modeset.conf
+for h in /root /home/*; do
+    c="$h/.config/hypr/hyprland.conf"
+    if [ -f "$c" ] && grep -q 'OVERSHOT nvidia env' "$c"; then
+        sed -i '/OVERSHOT nvidia env/d; /source = .*\/nvidia\.conf$/d' "$c"
+    fi
+done
+
 rm -rf /opt/hyprland-antix
 echo "done. User configs (~/.config/hypr, ~/.config/waybar, ~/.config/wofi) were kept."

@@ -4,7 +4,7 @@ MENUCONF=/usr/local/share/overshot/config/launcher/wofi-config
 MENUCSS=/usr/local/share/overshot/config/launcher/wofi-style.rasi
 HY="$HOME/.config/hypr"
 
-CHOICE=$(printf 'Cancel\nAppearance (GTK theme)\nAudio mixer\nNetwork connections\nBluetooth devices\nKeyboard layout\nSet wallpaper\nDate, time & timezone\nPackage manager (synaptic)\nToggle performance mode\nToggle dock\nReload Hyprland config\nReload waybar\nEdit Hyprland config\nEdit keybinds\nEdit waybar config\nGPU info\nAbout OVERSHOT\n' \
+CHOICE=$(printf 'Cancel\nAppearance (GTK theme)\nAudio mixer\nNetwork connections\nBluetooth devices\nKeyboard layout\nSet wallpaper\nDate, time & timezone\nPackage manager (synaptic)\nToggle performance mode\nToggle dock\nReload Hyprland config\nReload waybar\nEdit Hyprland config\nEdit keybinds\nEdit waybar config\nGPU manager (detect / NVIDIA driver)\nGPU info\nAbout OVERSHOT\n' \
     | wofi --dmenu -p "Settings" -i -c "$MENUCONF" -s "$MENUCSS" 2>/dev/null)
 
 case "$CHOICE" in
@@ -38,6 +38,12 @@ case "$CHOICE" in
     'Edit Hyprland config')       foot -e nano "$HY/hyprland.conf" ;;
     'Edit keybinds')              foot -e nano "$HY/keybinds.conf" ;;
     'Edit waybar config')          foot -e nano "$HOME/.config/waybar/config.jsonc" ;;
+    'GPU manager (detect / NVIDIA driver)')
+                                  if command -v overshot-gpu >/dev/null 2>&1; then
+                                      foot -e overshot-gpu
+                                  else
+                                      notify-send "OVERSHOT" "GPU manager not installed (run the installer)"
+                                  fi ;;
     'GPU info')                   foot -e sh -c 'glxinfo | grep -E "renderer|vendor" | head -5; echo; read -r _ dummy' ;;
     'About OVERSHOT')             notify-send "OVERSHOT OS" "Hyprland 0.56.2 on antiX Core — no systemd. Private test build." ;;
     *) : ;;

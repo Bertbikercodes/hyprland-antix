@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=OVERSHOT GPU Manager
+Comment=Detect GPUs, install/repair NVIDIA drivers, check the graphics stack
+Exec=foot -- overshot-gpu
+Icon=applications-engineering
+Categories=System;
+Terminal=false

@@ -30,13 +30,13 @@ CHECKSUM_URL="https://raw.githubusercontent.com/${REPO}/main/checksums/${TARBALL
 # downloads (stronger than fetching a checksum over the same channel).
 # The copy shipped INSIDE the tarball has this blanked (a file cannot contain
 # its own hash); it then falls back to CHECKSUM_URL.
-PINNED_SHA256="15a5e5408db3cbb42e28eafefcc9ea2210f4216fa936c7fe503f010738032ccf"
+PINNED_SHA256="c1179660e6affdd43862c75f201e3bdeddea1b6598392d9cf1e7b36847a07b65"
 REPORT="/tmp/overshot-install-report.txt"
 SUITE="complete"   # or "minimal"
 
 # fallback lists if the bundle manifests are missing (older bundle)
 FALLBACK_CORE="libcairo2 libgbm1 libinput10 libxkbcommon0 libwayland-client0"
-FALLBACK_MANDATORY="foot thunar tumbler udisks2 dunst swaybg swaylock grim slurp wl-clipboard xarchiver unzip zathura zathura-pdf-poppler imv mousepad htop ncdu acpi audacious audacious-plugins pavucontrol"
+FALLBACK_MANDATORY="foot thunar tumbler udisks2 dunst swaybg swaylock grim slurp wl-clipboard xarchiver unzip zathura zathura-pdf-poppler imv mousepad htop ncdu acpi audacious audacious-plugins pavucontrol pciutils"
 FALLBACK_RECOMMENDED="firefox-esr galculator fonts-noto-core fonts-font-awesome mesa-utils xwayland"
 
 # Hypr-family libs that ship in the bundle (NOT in the Debian repos)
@@ -73,7 +73,7 @@ if ver_ge "$GLIBC" "2.38"; then MODE="native"; else MODE="portable"; fi
 manifest() {
     # manifest <file-in-bundle> <fallback-list>
     if [ -f "$DEST/packages/$1" ]; then
-        grep -vE '^[[:space:]]*(#|$)' "$DEST/packages/$1"
+        grep -vE '^[[:space:]]*(#|$)' "$DEST/packages/$1" | sed 's/[[:space:]]*#.*$//; s/[[:space:]]*$//' | grep -v '^$' || true
     else
         echo "$2"
     fi
@@ -342,6 +342,41 @@ install_firmware_if_available() {
     [ "$any" -gt 0 ] && say "firmware: $any firmware package(s) installed" || say "firmware: none needed/available"
 }
 
+# ---------- GPU driver (NVIDIA) ----------
+install_gpu_driver_if_needed() {
+    # requires nvidia-lib.sh from the unpacked bundle
+    # shellcheck disable=SC1091
+    . "$DEST/scripts/nvidia-lib.sh" 2>/dev/null || true
+    if ! command -v gpu_nvidia_present >/dev/null 2>&1; then
+        warn "GPU detection library missing from bundle — skipping GPU phase"
+        rep "  gpu: skipped (nvidia-lib.sh missing)"
+        return 0
+    fi
+    if ! gpu_nvidia_present; then
+        say "gpu: no NVIDIA GPU detected — free drivers (mesa) stay in charge"
+        rep "  gpu: no NVIDIA GPU detected; mesa/nouveau path"
+        return 0
+    fi
+    say "gpu: NVIDIA GPU detected"
+    gpu_scan_all | while IFS='|' read -r pci id vendor drv desc; do
+        rep "  gpu found: $desc [$id] (driver: $drv)"
+    done
+    if [ "$SUITE" = "minimal" ]; then
+        rep "  gpu: minimal mode — driver NOT auto-installed; run 'sudo overshot-gpu install' later"
+        say "gpu: driver install skipped (minimal mode) — use 'overshot-gpu' in the menu later"
+        return 0
+    fi
+    # complete mode: automatic install, but a failure never breaks the desktop
+    say "gpu: installing the recommended NVIDIA driver (auto, safe to fail)"
+    rep "  gpu: attempting automatic NVIDIA driver install"
+    if bash "$DEST/scripts/gpu-manager.sh" install --batch 2>&1 | tee -a "$REPORT"; then
+        :
+    else
+        warn "NVIDIA driver install did not complete — nouveau stays active; the desktop is unaffected"
+        rep "  gpu: NVIDIA install INCOMPLETE (see overshot-gpu report); nouveau active"
+    fi
+}
+
 # ---------- desktop menu entries (launchers only for what is really installed) ----------
 install_desktop_entries() {
     say "desktop menu entries (only for components that are actually present)"
@@ -483,12 +518,13 @@ install_app_suite() {
         rep "-- recommended applications SKIPPED (minimal mode; menu option 3 adds them later) --"
     fi
 
-    say "hardware-specific components (audio/network/bluetooth detection)"
+    say "hardware-specific components (audio/network/bluetooth/GPU detection)"
     rep "-- hardware detection --"
     install_audio_if_needed
     install_network_if_needed
     install_bluetooth_if_present
     install_firmware_if_available
+    install_gpu_driver_if_needed
 
     install_desktop_entries
     verify_apps

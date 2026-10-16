@@ -349,11 +349,16 @@ EOFAKECAVA
           OVERSHOT_CAVA_ONCE=1 OVERSHOT_QUIET_FRAMES=2 \
           timeout 10 "$SHARE/scripts/waybar-cava" 2>/dev/null)
     L1=$(printf '%s\n' "$OUT" | sed -n 1p)
+    L2=$(printf '%s\n' "$OUT" | sed -n 2p)
     L3=$(printf '%s\n' "$OUT" | sed -n 3p)
-    printf '%s' "$L1" | grep -qF '▁▁▂▂▃▃▄▄▅▅▆▆' \
-        && ok "vis: bars rendered from cava raw data" || bad "vis: bar rendering wrong: $L1"
+    [ "$L1" = '{"text": "|   |   |   |   |   |   |   |   ||  ||  ||  ||  "}' ] \
+        && ok "vis: pipe bars rendered (| || ||| = louder)" || bad "vis: bar rendering wrong: [$L1]"
+    [ "$L2" = '{"text": "                                                "}' ] \
+        && ok "vis: silent frame keeps fixed 48-char width" || bad "vis: silent frame width wrong: [$L2]"
     [ "$L3" = '{"text": ""}' ] \
-        && ok "vis: silence hides the module (empty JSON)" || bad "vis: silence not handled: $L3"
+        && ok "vis: sustained silence hides the module" || bad "vis: silence not handled: [$L3]"
+    grep -q 'od -An -v -tu1' "$SHARE/scripts/waybar-cava" \
+        && ok "vis: od -v keeps silent frames counting (no * dedup)" || bad "vis: od dedup would stall the hide timer"
     # no cava binary -> clean exit, waybar exec-if hides module
     PATH="/usr/local/bin" OVERSHOT_CAVA_CONF="$CC" timeout 5 "$SHARE/scripts/waybar-cava" >/dev/null 2>&1
     # (cava from apt is present in a full install, so only assert the guard exists)

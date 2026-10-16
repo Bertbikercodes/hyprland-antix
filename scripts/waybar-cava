@@ -1,6 +1,7 @@
 #!/bin/sh
 # OVERSHOT OS — Waybar music visualizer.
-# cava (raw mode) -> 12 unicode height bars, emitted as Waybar JSON.
+# cava (raw mode) -> 12 thin pipe bars (| || ||| = louder), Waybar JSON.
+# Fixed 4-char slots so the panel never jitters while music plays.
 # Silent for a while -> empty text -> Waybar hides the module.
 # Self-loops, so Waybar only needs to start us once. No daemon otherwise.
 
@@ -13,17 +14,20 @@ command -v cava >/dev/null 2>&1 || exit 1
 [ -f "$CONF" ] || exit 1
 command -v od >/dev/null 2>&1 || exit 1
 
+# od -v: never collapse repeated silent frames, so 'still' keeps counting
 while :; do
     cava -p "$CONF" 2>/dev/null \
-        | stdbuf -oL od -An -tu1 -w"$BARS" \
+        | stdbuf -oL od -An -v -tu1 -w"$BARS" \
         | awk -v quiet="$QUIET" '
-            BEGIN { b[0] = "▁"; b[1] = "▂"; b[2] = "▃"; b[3] = "▄"; b[4] = "▅"; b[5] = "▆"; b[6] = "▇"; b[7] = "█"; still = 0 }
+            BEGIN { still = 0 }
             {
                 out = ""; sum = 0
                 for (i = 1; i <= NF; i++) {
                     v = $i + 0; sum += v
-                    n = int(v / 32); if (n > 7) n = 7
-                    out = out b[n]
+                    n = int(v / 64); if (n > 3) n = 3; if (n < 1 && v > 0) n = 1
+                    bar = ""
+                    for (j = 0; j < n; j++) bar = bar "|"
+                    out = out sprintf("%-4s", bar)
                 }
                 if (sum == 0) {
                     still++

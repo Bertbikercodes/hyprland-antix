@@ -44,7 +44,8 @@ Full step-by-step guide incl. verification commands: **docs/installation.md**.
 ## First session
 
 After `hyprland` you get, immediately usable: panel with music visualizer
-(cava bars, hidden when silent) and quick-settings button, dock, launcher
+(thin pipe bars, | || ||| = louder, hidden when silent) and quick-settings
+button, dock, launcher
 (Win+Space), terminal (Win+Enter), file manager (Win+E), browser (dock),
 music player (dock), volume (panel + pavucontrol), network (cmst from
 panel), settings menu (Win+S or panel gear -> volume / Wi-Fi / Bluetooth),
@@ -155,10 +156,12 @@ build/ · patches/          trixie build system + gcc-15 compatibility patches
 - `hyprland --version` runs natively; **no** unresolved libraries (ldd);
   RPATH correct; pinned libs NOT in the ldconfig cache
 - seatd SysVinit service starts and creates its socket; seat group created
-- music visualizer pipeline: cava raw mode -> od framing -> awk bars ->
-  Waybar JSON, with fake cava data (bars correct, silence hides the module);
-  verified under gawk AND mawk (Debian default) — mawk is byte-oriented,
-  the script uses literal bar arrays, not substr
+- music visualizer pipeline: cava raw mode -> od framing -> awk pipe bars
+  (| || ||| = louder, fixed-width slots so the panel never jitters) ->
+  Waybar JSON, with fake cava data: bars exact, silent frame keeps width,
+  sustained silence hides the module; pure-ASCII output (no font issues);
+  od -v so repeated silent frames keep counting (od's * dedup otherwise
+  stalls the hide timer); silence-hide logic exercised for real
 - quick-settings menu wiring: overshot-quickmenu symlink, volume (pactl),
   Wi-Fi (cmst), Bluetooth (blueman -> bluetoothctl fallback), Win+S/Win+A
   keybinds, uninstall coverage

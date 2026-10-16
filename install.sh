@@ -30,7 +30,7 @@ CHECKSUM_URL="https://raw.githubusercontent.com/${REPO}/main/checksums/${TARBALL
 # downloads (stronger than fetching a checksum over the same channel).
 # The copy shipped INSIDE the tarball has this blanked (a file cannot contain
 # its own hash); it then falls back to CHECKSUM_URL.
-PINNED_SHA256="6720e4537be969162869536673b4c0b05f935041d2fa5e681107e441d5522bde"
+PINNED_SHA256="f2e0dfa80fdd3f10f5de8384e36f3fe72bbf529d8b00d090f08f341ea389509d"
 REPORT="/tmp/overshot-install-report.txt"
 SUITE="complete"   # or "minimal"
 

@@ -70,8 +70,10 @@ Measured vs estimated values are labeled in the report.
 ## Panel music visualizer
 
 `scripts/waybar-cava` pipes cava's raw mode (12 bars, 8-bit) through od+awk
-and emits Waybar JSON. It appears on the right of the panel while sound plays
-and hides itself after ~25 silent frames. Click it to open the music player.
+and emits Waybar JSON as thin pipe strokes: `|` soft, `||` medium, `|||` loud.
+Every bar sits in a fixed 4-character slot, so the panel never shifts while
+music plays. It appears on the right of the panel while sound plays and hides
+itself after ~25 silent frames. Click it to open the music player.
 Tweak `config/cava/cava.conf` (bars, framerate, smoothing) and re-login.
 
 ## Quick settings
